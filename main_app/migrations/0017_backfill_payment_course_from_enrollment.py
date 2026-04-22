@@ -6,6 +6,17 @@ def backfill_course(apps, schema_editor):
     if schema_editor.connection.vendor != "sqlite":
         return
     with schema_editor.connection.cursor() as cursor:
+        # Some deployments may have schema drift where this migration runs
+        # before the enrollment table exists. Skip safely in that case.
+        cursor.execute(
+            """
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name IN ('main_app_payment', 'main_app_enrollment')
+            """
+        )
+        present = {row[0] for row in cursor.fetchall()}
+        if "main_app_payment" not in present or "main_app_enrollment" not in present:
+            return
         cursor.execute(
             """
             UPDATE main_app_payment
