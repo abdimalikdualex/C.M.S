@@ -521,7 +521,8 @@ class StaffEditForm(CustomUserForm):
 
 
 class EditResultForm(FormSettings):
-    session_list = Session.objects.active_or_latest()
+    # IMPORTANT: keep queryset lazy at import time; DB tables may not exist during startup/deploy.
+    session_list = Session.objects.none()
     session_year = forms.ModelChoiceField(
         label="Session Year", queryset=session_list, required=True)
 
