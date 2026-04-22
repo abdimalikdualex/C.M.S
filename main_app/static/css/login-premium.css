@@ -1,0 +1,148 @@
+﻿/* Login page — clean white professional style */
+.login-page-premium {
+    margin: 0;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    background: #f5f7fa;
+}
+
+.login-wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    animation: loginFadeIn 280ms ease-out;
+}
+
+@keyframes loginFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-page-premium .login-box {
+    width: 100%;
+    max-width: 380px;
+    margin: auto;
+}
+
+/* Main login card — minimal modern white style */
+.login-page-premium .login-box .card,
+.login-page-premium .login-card {
+    background: #ffffff;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid #e8eaed;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.login-page-premium .login-card-body {
+    color: #333;
+    padding: 2rem 2.25rem;
+}
+
+.login-page-premium .title {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
+    margin: 0 0 20px;
+    color: #1f2937;
+}
+
+.login-page-premium .login-card-body .alert {
+    margin-bottom: 1rem;
+}
+
+/* Email & password inputs — clear edges */
+.login-page-premium .input-field,
+.login-page-premium input.form-control.input-field {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    background: #fff !important;
+    opacity: 1 !important;
+    outline: none;
+    box-shadow: none;
+    height: auto;
+}
+
+.login-page-premium .input-field:focus,
+.login-page-premium input.form-control.input-field:focus {
+    border-color: #007bff;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+/* reCAPTCHA */
+.login-page-premium .recaptcha-wrap {
+    margin-bottom: 18px;
+}
+
+.login-page-premium .g-recaptcha {
+    margin: 0;
+    padding: 8px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e5e5e5;
+    display: inline-block;
+}
+
+/* Remember + full-width submit */
+.login-page-premium .login-card-body form .login-actions-row {
+    margin-top: 0.25rem;
+}
+
+.login-page-premium .login-card-body button[type="submit"],
+.login-page-premium .login-card-body .btn-success,
+.login-page-premium .login-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #007bff;
+    color: #fff;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.25);
+}
+
+.login-page-premium .login-card-body .btn-success:hover {
+    background: #0056b3;
+    color: #fff;
+}
+
+.login-page-premium .form-group {
+    margin-bottom: 18px;
+}
+
+.login-page-premium .icheck-primary label {
+    color: #444;
+    font-size: 14px;
+}
+
+.login-page-premium .login-card-body > p.mb-1 {
+    margin-top: 1.25rem;
+    text-align: center;
+}
+
+.login-page-premium .login-card-body a {
+    color: #007bff;
+    font-weight: 500;
+}
+
+.login-page-premium .login-card-body a:hover {
+    color: #0056b3;
+}

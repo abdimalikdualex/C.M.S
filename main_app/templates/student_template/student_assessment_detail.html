@@ -1,0 +1,66 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="mb-2">
+      <a href="{% url 'student_assessment_list' %}" class="btn btn-default btn-sm">← My assessments</a>
+    </div>
+    <div class="card card-dark">
+      <div class="card-header">
+        <h3 class="card-title">{{ assessment.title }}</h3>
+        <p class="mb-0 small text-muted">{{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}</p>
+      </div>
+      <div class="card-body">
+        {% if now > assessment.due_date %}
+        <p class="alert alert-warning py-2">This assessment is past the due date{% if assessment.closes_at_deadline %} and is closed for submission{% endif %}.</p>
+        {% endif %}
+        {% if assessment.description %}
+        <div class="mb-3">{{ assessment.description|linebreaks }}</div>
+        {% endif %}
+        {% if assessment.file %}
+        <p><a href="{{ assessment.file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Download instructions / attachment</a></p>
+        {% endif %}
+
+        {% if graded %}
+        <div class="border rounded p-3 bg-light">
+          <p class="mb-1"><strong>Grade:</strong> {{ submission.grade }}</p>
+          {% if submission.feedback %}
+          <p class="mb-0"><strong>Feedback:</strong><br>{{ submission.feedback|linebreaks }}</p>
+          {% endif %}
+        </div>
+        {% elif submission %}
+        <p class="text-success">You submitted on {{ submission.submitted_at|date:"Y-m-d H:i" }}.</p>
+        {% if submission.file %}<p><a href="{{ submission.file.url }}" target="_blank" rel="noopener">Your uploaded file</a></p>{% endif %}
+        {% if submission.text_answer %}<div class="border rounded p-2 small">{{ submission.text_answer|linebreaks }}</div>{% endif %}
+        {% if closed and not graded %}
+        <p class="text-warning small">Deadline has passed; you can no longer change this submission.</p>
+        {% elif not closed %}
+        <p class="small text-muted">Your work is awaiting grading.</p>
+        {% endif %}
+        {% endif %}
+
+        {% if not graded and not closed %}
+        <h5 class="mt-3">Submit or update</h5>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Written answer</label>
+            <textarea name="text_answer" class="form-control" rows="6" placeholder="Type your answer here (optional if you attach a file).">{% if submission %}{{ submission.text_answer }}{% endif %}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Attach file (optional)</label>
+            <input type="file" name="file" class="form-control-file">
+            {% if submission and submission.file %}<small class="text-muted d-block">Current file will be replaced if you choose a new one.</small>{% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+        {% elif closed and not submission %}
+        <p class="text-danger">The deadline has passed and submissions are closed.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

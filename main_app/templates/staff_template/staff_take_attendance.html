@@ -1,0 +1,155 @@
+﻿{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Class / Subject</label>
+                            <select name="subject" class="form-control" id="subject">
+                                <option value="">----</option>
+                                {% for subject in subjects %}
+                                <option value="{{subject.id}}" {% if request.GET.subject == subject.id|stringformat:'s' %}selected{% endif %}>{{ subject.course.name }} — {{subject.name}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Session Year</label>
+                            <select name="session" id="session" class="form-control">
+                                <option value="">----</option>
+                                {% for session in sessions %}
+                                <option value="{{session.id}}">{{session}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <button type="button" id="fetch_student" class="btn btn-success btn-block">Fetch Students</button>
+                        <div class="form-group mt-3" id="student_data"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        const preSubject = "{{ request.GET.subject|default:'' }}";
+        if (preSubject) {
+            $("#subject").val(preSubject);
+        }
+
+        $(document).on("click", "#mark_all_present", function () {
+            $("input[name='student_data[]']").prop("checked", true);
+        });
+
+        $(document).on("click", "#mark_all_absent", function () {
+            $("input[name='student_data[]']").prop("checked", false);
+        });
+
+        function submitAttendance(subject, session) {
+            const saveBtns = $("#save_attendance_top, #save_attendance_bottom");
+            saveBtns.attr("disabled", "disabled").text("Saving Attendance Data...");
+
+            var student_data = $("input[name='student_data[]']").map(function () {
+                return {
+                    id: $(this).val(),
+                    status: $(this).is(":checked") ? 1 : 0
+                };
+            }).get();
+
+            var attendance_date = $("#attendance_date").val();
+            if (attendance_date.length < 10) {
+                alert("Select date");
+                saveBtns.removeAttr("disabled").text("Save Attendance");
+                return false;
+            }
+
+            student_data = JSON.stringify(student_data);
+            $.ajax({
+                url: "{% url 'save_attendance' %}",
+                type: 'POST',
+                data: {
+                    date: attendance_date,
+                    student_ids: student_data,
+                    subject: subject,
+                    session: session
+                }
+            }).done(function (response) {
+                if (response == 'OK') {
+                    alert("Attendance saved");
+                } else {
+                    alert("Error. Please try again");
+                }
+                location.reload();
+            }).fail(function () {
+                alert("Error in saving attendance");
+                saveBtns.removeAttr("disabled").text("Save Attendance");
+            });
+        }
+
+        $(document).on('click', '#save_attendance_top, #save_attendance_bottom', function () {
+            const subject = $("#subject").val();
+            const session = $("#session").val();
+            submitAttendance(subject, session);
+        });
+
+        $("#fetch_student").click(function () {
+            var subject = $("#subject").val();
+            var session = $("#session").val();
+            $("#student_data").html("");
+
+            if (subject.length == 0 || session.length == 0) {
+                alert("Please select session and class");
+                return false;
+            }
+
+            $.ajax({
+                url: "{% url 'get_students' %}",
+                type: 'POST',
+                data: {
+                    subject: subject,
+                    session: session
+                }
+            }).done(function (response) {
+                var json_data = JSON.parse(response);
+                if (json_data.length < 1) {
+                    alert("No students found for this class/session");
+                } else {
+                    var html = "";
+                    html += "<hr/><div class='form-group'><label>Attendance Date</label><input type='date' class='form-control' id='attendance_date'></div>";
+                    html += "<div class='mb-2'>" +
+                        "<button id='mark_all_present' class='btn btn-sm btn-outline-success mr-2' type='button'>Mark All Present</button>" +
+                        "<button id='mark_all_absent' class='btn btn-sm btn-outline-danger' type='button'>Mark All Absent</button>" +
+                        "</div>";
+                    html += "<div class='form-group'><button id='save_attendance_top' class='btn btn-success' type='button'>Save Attendance</button></div>";
+                    html += "<div class='table-responsive'><table class='table table-sm table-bordered'><thead><tr><th>Student</th><th>Present</th></tr></thead><tbody>";
+
+                    for (key in json_data) {
+                        html += "<tr><td>" + json_data[key]['name'] + "</td>" +
+                            "<td><input type='checkbox' name='student_data[]' checked='checked' value='" + json_data[key]['id'] + "' /></td></tr>";
+                    }
+
+                    html += "</tbody></table></div>";
+                    html += "<div class='form-group mt-2'><button id='save_attendance_bottom' class='btn btn-success' type='button'>Save Attendance</button></div>";
+                    $("#student_data").html(html);
+                }
+            }).fail(function () {
+                alert("Error in fetching students");
+            });
+        });
+    });
+</script>
+{% endblock custom_js %}

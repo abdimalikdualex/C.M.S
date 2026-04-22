@@ -1,0 +1,46 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}Receipt {{ payment.receipt_no }}{% endblock page_title %}
+{% block content %}
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .content { padding: 0 !important; }
+  }
+  .receipt-box { max-width: 640px; margin: 0 auto; border: 1px solid #ccc; padding: 1.5rem; }
+  .receipt-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .receipt-meta { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+  .receipt-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid #eee; }
+  .receipt-label { color: #666; }
+</style>
+<section class="content">
+  <div class="container-fluid">
+    <p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button></p>
+    <div class="receipt-box">
+      <div class="receipt-title">{{ college_name }}</div>
+      {% if college_location %}<div class="receipt-meta">{{ college_location }}</div>{% endif %}
+      <div class="receipt-meta">Payment receipt</div>
+      <div class="receipt-row"><span class="receipt-label">Receipt no.</span><span>{{ payment.receipt_no }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Date</span><span>{{ payment.paid_at|date:"Y-m-d H:i" }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Student</span><span>{{ student.admin.get_full_name }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Student ID</span><span>{{ student.student_id }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Course</span><span>{% if payment.enrollment %}{{ payment.enrollment.course.name }}{% elif payment.course %}{{ payment.course.name }}{% elif student.course %}{{ student.course.name }}{% else %}—{% endif %}</span></div>
+      {% if payment.enrollment %}
+      <div class="receipt-row"><span class="receipt-label">Enrollment start</span><span>{{ payment.enrollment.start_date|date:"Y-m-d" }}</span></div>
+      {% endif %}
+      <div class="receipt-row"><span class="receipt-label">Amount (KES)</span><span><strong>{{ payment.amount|floatformat:0|intcomma }}</strong></span></div>
+      <div class="receipt-row"><span class="receipt-label">Mode</span><span>{{ payment.get_mode_display }}</span></div>
+      {% if payment.reference %}
+      <div class="receipt-row"><span class="receipt-label">Reference</span><span>{{ payment.reference }}</span></div>
+      {% endif %}
+      {% if payment.note %}
+      <div class="receipt-row"><span class="receipt-label">Note</span><span>{{ payment.note }}</span></div>
+      {% endif %}
+      {% if payment.created_by %}
+      <div class="receipt-row"><span class="receipt-label">Recorded by</span><span>{{ payment.created_by.get_full_name }}</span></div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock content %}

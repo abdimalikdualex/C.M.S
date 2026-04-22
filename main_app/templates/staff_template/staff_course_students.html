@@ -1,0 +1,67 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <form method="get" class="form-inline">
+                    <input type="search" name="q" value="{{ search_q }}" class="form-control mr-2 mb-2"
+                        placeholder="Search name or student ID">
+                    <select name="course" class="form-control mr-2 mb-2">
+                        <option value="">All courses</option>
+                        {% for c in courses %}
+                        <option value="{{ c.id }}" {% if course_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary mb-2">Filter</button>
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student</th>
+                                    <th>Student ID</th>
+                                    <th>Course</th>
+                                    <th>Balance (KES)</th>
+                                    <th>Statement</th>
+                                    <th>Enroll another</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in students %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ s.admin.get_full_name }}</td>
+                                    <td>{{ s.student_id }}</td>
+                                    <td>{% if s.course %}{{ s.course.name }}{% else %}—{% endif %}</td>
+                                    <td>{{ s.balance|floatformat:0|intcomma }}</td>
+                                    <td><a href="{% url 'student_fee_statement' s.id %}">View</a></td>
+                                    <td><a href="{% url 'admission_enroll_existing_student' %}?lookup={{ s.student_id }}">Enroll</a></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No students found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

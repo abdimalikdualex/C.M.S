@@ -1,0 +1,72 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="mb-2">
+      <a href="{% url 'staff_assessment_list' %}" class="btn btn-default btn-sm">All assessments</a>
+      <a href="{% url 'staff_assessment_detail' assessment.pk %}" class="btn btn-outline-primary btn-sm">Edit assessment</a>
+    </div>
+    <div class="card card-dark">
+      <div class="card-header">
+        <h3 class="card-title">{{ assessment.title }}</h3>
+        <p class="mb-0 small text-muted">Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
+      </div>
+      <div class="card-body">
+        {% if assessment.file %}
+        <p><a href="{{ assessment.file.url }}" target="_blank" rel="noopener">Download instruction file</a></p>
+        {% endif %}
+        {% if assessment.description %}
+        <div class="border rounded p-2 mb-3 small">{{ assessment.description|linebreaks }}</div>
+        {% endif %}
+        {% if now > assessment.due_date %}
+        <p class="text-warning"><strong>Past due date</strong> — students may still submit unless “closes at deadline” is on.</p>
+        {% endif %}
+      </div>
+      <div class="table-responsive p-0">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="thead-light">
+            <tr>
+              <th>Student</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Grade</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.student.admin.get_full_name }} ({{ row.student.student_id }})</td>
+              <td>
+                {% if row.submission %}
+                  Submitted
+                {% else %}
+                  <span class="text-muted">Not submitted</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.submission %}
+                  {{ row.submission.submitted_at|date:"Y-m-d H:i" }}
+                  {% if row.submission.file %}<br><a href="{{ row.submission.file.url }}" target="_blank" rel="noopener">File</a>{% endif %}
+                  {% if row.submission.text_answer %}<br><span class="small">{{ row.submission.text_answer|truncatewords:20 }}</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>{% if row.submission and row.submission.grade is not None %}{{ row.submission.grade }}{% elif row.submission %}Pending{% else %}—{% endif %}</td>
+              <td>
+                {% if row.submission %}
+                <a href="{% url 'staff_assessment_grade' assessment.pk row.submission.pk %}" class="btn btn-outline-success btn-sm">Grade</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted">No students linked to this course.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

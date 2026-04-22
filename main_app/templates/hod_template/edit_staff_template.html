@@ -1,0 +1,51 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- general form elements -->
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    {% include "main_app/form_template.html" with messages=messages  form=form button_text="Update Staff"%}
+                </div>
+                <!-- /.card -->
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+{% block custom_js %}
+<script>
+(function () {
+    function toggleStaffCourseField() {
+        var roleEl = document.getElementById("id_role");
+        var courseEl = document.getElementById("id_course");
+        if (!roleEl || !courseEl) return;
+        var role = roleEl.value;
+        var wrap = courseEl.closest(".form-group");
+        if (role === "admission" || role === "finance") {
+            if (wrap) wrap.style.display = "none";
+            courseEl.disabled = true;
+        } else {
+            if (wrap) wrap.style.display = "";
+            courseEl.disabled = false;
+        }
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        var roleEl = document.getElementById("id_role");
+        if (roleEl) {
+            toggleStaffCourseField();
+            roleEl.addEventListener("change", toggleStaffCourseField);
+        }
+    });
+})();
+</script>
+{% endblock custom_js %}
