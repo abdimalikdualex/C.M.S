@@ -59,24 +59,29 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(forwards, noop_reverse),
-        migrations.AlterField(
-            model_name="course",
-            name="full_fee",
-            field=models.PositiveIntegerField(default=0),
-        ),
-        migrations.AlterField(
-            model_name="course",
-            name="monthly_fee",
-            field=models.PositiveIntegerField(default=0),
-        ),
-        migrations.AlterField(
-            model_name="enrollment",
-            name="total_fee",
-            field=models.PositiveIntegerField(default=0),
-        ),
-        migrations.AlterField(
-            model_name="payment",
-            name="amount",
-            field=models.PositiveIntegerField(),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AlterField(
+                    model_name="course",
+                    name="full_fee",
+                    field=models.PositiveIntegerField(default=0),
+                ),
+                migrations.AlterField(
+                    model_name="course",
+                    name="monthly_fee",
+                    field=models.PositiveIntegerField(default=0),
+                ),
+                migrations.AlterField(
+                    model_name="enrollment",
+                    name="total_fee",
+                    field=models.PositiveIntegerField(default=0),
+                ),
+                migrations.AlterField(
+                    model_name="payment",
+                    name="amount",
+                    field=models.PositiveIntegerField(),
+                ),
+            ],
         ),
     ]
