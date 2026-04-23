@@ -176,7 +176,9 @@ EMAIL_USE_TLS = True
 COLLEGE_NAME = os.environ.get("COLLEGE_NAME", "ELEVATE COLLEGE")
 COLLEGE_LOCATION = os.environ.get("COLLEGE_LOCATION", "")
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Use non-manifest storage to avoid build failure on third-party CSS
+# files that reference optional/missing assets.
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 prod_db = dj_database_url.config(conn_max_age=500)
 DATABASES['default'].update(prod_db)
 
