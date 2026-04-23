@@ -31,7 +31,7 @@
 
 .login-page-premium .login-box {
     width: 100%;
-    max-width: 380px;
+    max-width: 520px;
     margin: auto;
 }
 
@@ -40,23 +40,37 @@
 .login-page-premium .login-card {
     background: #ffffff;
     padding: 0;
-    border-radius: 12px;
+    border-radius: 16px;
     border: 1px solid #e8eaed;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
 }
 
 .login-page-premium .login-card-body {
     color: #333;
-    padding: 2rem 2.25rem;
+    padding: 3rem 3rem 2.5rem;
 }
 
 .login-page-premium .title {
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     line-height: 1.25;
     text-align: center;
-    margin: 0 0 20px;
+    margin: 0 0 28px;
     color: #1f2937;
+}
+
+@media (max-width: 575.98px) {
+    .login-page-premium .login-box {
+        max-width: 100%;
+    }
+    .login-page-premium .login-card-body {
+        padding: 2rem 1.5rem;
+    }
+    .login-page-premium .title {
+        font-size: 24px;
+        margin-bottom: 22px;
+    }
 }
 
 .login-page-premium .login-card-body .alert {
@@ -67,10 +81,10 @@
 .login-page-premium .input-field,
 .login-page-premium input.form-control.input-field {
     width: 100%;
-    padding: 12px 14px;
-    font-size: 14px;
+    padding: 14px 16px;
+    font-size: 15px;
     border: 1px solid #dcdcdc;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #fff !important;
     opacity: 1 !important;
     outline: none;
@@ -108,15 +122,15 @@
 .login-page-premium .login-card-body .btn-success,
 .login-page-premium .login-btn {
     width: 100%;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 14px;
+    border-radius: 10px;
     border: none;
     background: #007bff;
     color: #fff;
     font-weight: bold;
     font-size: 16px;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.25);
+    box-shadow: 0 4px 14px rgba(0, 123, 255, 0.25);
 }
 
 .login-page-premium .login-card-body .btn-success:hover {
@@ -125,7 +139,7 @@
 }
 
 .login-page-premium .form-group {
-    margin-bottom: 18px;
+    margin-bottom: 22px;
 }
 
 .login-page-premium .icheck-primary label {
