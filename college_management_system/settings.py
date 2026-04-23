@@ -23,7 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'f2zx8*lb*em*-*b+!&1lpp&$_9q9kmkar+l3x90do@s(+sr&x7'  # Consider using your secret key
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "f2zx8*lb*em*-*b+!&1lpp&$_9q9kmkar+l3x90do@s(+sr&x7",  # dev fallback only
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() == "true"
@@ -179,6 +182,21 @@ COLLEGE_LOCATION = os.environ.get("COLLEGE_LOCATION", "")
 # Use non-manifest storage to avoid build failure on third-party CSS
 # files that reference optional/missing assets.
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-prod_db = dj_database_url.config(conn_max_age=500)
-DATABASES['default'].update(prod_db)
+
+# Use DATABASE_URL when provided (Render/Heroku/etc). Falls back to the
+# local SQLite config declared above when the env var isn't set.
+_database_url = os.environ.get("DATABASE_URL", "").strip()
+if _database_url:
+    DATABASES['default'] = dj_database_url.parse(
+        _database_url,
+        conn_max_age=500,
+        ssl_require=not DEBUG,
+    )
+
+# Behind Render/Heroku load balancers the original request is HTTPS; tell
+# Django so secure cookies and redirects behave correctly.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
