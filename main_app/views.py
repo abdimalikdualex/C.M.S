@@ -1,10 +1,9 @@
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import authenticate, login, logout
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
 
-from .EmailBackend import EmailBackend
 from .models import Attendance, Session, Staff, Student, Subject
 from .roles import get_post_login_redirect_url
 
@@ -19,12 +18,9 @@ def doLogin(request, **kwargs):
     if request.method != 'POST':
         return HttpResponse("<h4>Denied</h4>")
     else:
-        # ✅ Authenticate user (NO CAPTCHA)
-        user = EmailBackend.authenticate(
-            request,
-            username=request.POST.get('email'),
-            password=request.POST.get('password')
-        )
+        email = (request.POST.get("email") or "").strip()
+        password = request.POST.get("password")
+        user = authenticate(request, username=email, password=password)
 
         if user is not None:
             login(request, user)
