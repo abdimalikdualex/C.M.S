@@ -1,39 +1,51 @@
-from decimal import Decimal
-
 from django.db import migrations, models
 
 
-def _to_int(value):
-    if value is None:
-        return 0
-    return int(Decimal(str(value)))
+def _table_columns(connection, table_name):
+    try:
+        with connection.cursor() as cursor:
+            desc = connection.introspection.get_table_description(cursor, table_name)
+        return {col.name for col in desc}
+    except Exception:
+        return set()
 
 
 def forwards(apps, schema_editor):
-    Payment = apps.get_model("main_app", "Payment")
-    # Legacy local DB safety: remove broken rows that cannot satisfy NOT NULL FK constraints.
-    Payment.objects.filter(student_id__isnull=True).delete()
-    for p in Payment.objects.all().iterator():
-        new_amt = _to_int(p.amount)
-        if new_amt != p.amount:
-            p.amount = new_amt
-            p.save(update_fields=["amount"])
+    """
+    Schema-drift-safe integer conversion:
+    avoid ORM iteration because legacy DBs may miss model columns (e.g. enrollment_id).
+    """
+    conn = schema_editor.connection
+    tables = set(conn.introspection.table_names())
 
-    Course = apps.get_model("main_app", "Course")
-    for c in Course.objects.all().iterator():
-        nf = _to_int(c.full_fee)
-        nm = _to_int(c.monthly_fee)
-        if nf != c.full_fee or nm != c.monthly_fee:
-            c.full_fee = nf
-            c.monthly_fee = nm
-            c.save(update_fields=["full_fee", "monthly_fee"])
+    with conn.cursor() as cursor:
+        if "main_app_payment" in tables:
+            cols = _table_columns(conn, "main_app_payment")
+            if "student_id" in cols:
+                # Remove broken rows only when student_id column exists.
+                cursor.execute("DELETE FROM main_app_payment WHERE student_id IS NULL")
+            if "amount" in cols:
+                cursor.execute(
+                    "UPDATE main_app_payment SET amount = CAST(amount AS INTEGER) WHERE amount IS NOT NULL"
+                )
 
-    Enrollment = apps.get_model("main_app", "Enrollment")
-    for e in Enrollment.objects.all().iterator():
-        nt = _to_int(e.total_fee)
-        if nt != e.total_fee:
-            e.total_fee = nt
-            e.save(update_fields=["total_fee"])
+        if "main_app_course" in tables:
+            cols = _table_columns(conn, "main_app_course")
+            if "full_fee" in cols:
+                cursor.execute(
+                    "UPDATE main_app_course SET full_fee = CAST(full_fee AS INTEGER) WHERE full_fee IS NOT NULL"
+                )
+            if "monthly_fee" in cols:
+                cursor.execute(
+                    "UPDATE main_app_course SET monthly_fee = CAST(monthly_fee AS INTEGER) WHERE monthly_fee IS NOT NULL"
+                )
+
+        if "main_app_enrollment" in tables:
+            cols = _table_columns(conn, "main_app_enrollment")
+            if "total_fee" in cols:
+                cursor.execute(
+                    "UPDATE main_app_enrollment SET total_fee = CAST(total_fee AS INTEGER) WHERE total_fee IS NOT NULL"
+                )
 
 
 def noop_reverse(apps, schema_editor):
