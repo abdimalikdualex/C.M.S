@@ -5,6 +5,48 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def _table_columns(connection, table_name):
+    try:
+        with connection.cursor() as cursor:
+            desc = connection.introspection.get_table_description(cursor, table_name)
+        return {col.name for col in desc}
+    except Exception:
+        return set()
+
+
+def _heal_missing_enrollment_schema(apps, schema_editor):
+    """Create the `main_app_enrollment` table and `payment.enrollment_id` FK
+    column if they are missing from the physical database.
+
+    Migration 0015 declared these in Django's model state via
+    SeparateDatabaseAndState(database_operations=[]), which skipped the actual
+    CREATE TABLE / ADD COLUMN on the database. On production Postgres the
+    table therefore never existed; any later migration that touches it (or
+    runs a RunPython that queries it) fails with
+    `relation "main_app_enrollment" does not exist`.
+
+    This step is idempotent: on databases that already have the table/column
+    (e.g. local SQLite where the ORM auto-created them), it's a no-op.
+    """
+    conn = schema_editor.connection
+    existing_tables = set(conn.introspection.table_names())
+
+    Enrollment = apps.get_model("main_app", "Enrollment")
+    Payment = apps.get_model("main_app", "Payment")
+
+    if Enrollment._meta.db_table not in existing_tables:
+        schema_editor.create_model(Enrollment)
+
+    payment_cols = _table_columns(conn, Payment._meta.db_table)
+    if "enrollment_id" not in payment_cols:
+        enrollment_field = Payment._meta.get_field("enrollment")
+        schema_editor.add_field(Payment, enrollment_field)
+
+
+def _noop_heal_reverse(apps, schema_editor):
+    """No-op: we never want to drop the enrollment table on rollback here."""
+
+
 def _copy_student_fields_to_enrollment(apps, schema_editor):
     """Carry soon-to-be-dropped Student fields onto matching Enrollment rows.
 
@@ -79,6 +121,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(_heal_missing_enrollment_schema, _noop_heal_reverse),
         migrations.RunPython(_copy_student_fields_to_enrollment, _noop_reverse),
         migrations.AlterModelOptions(
             name='assessment',
