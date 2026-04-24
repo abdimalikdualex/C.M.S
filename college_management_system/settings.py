@@ -31,12 +31,48 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "False").strip().lower() == "true"
 
-# Render/production-safe host config via env, with sane local defaults.
-_hosts_env = os.environ.get("ALLOWED_HOSTS", "127.0.0.1,localhost,.onrender.com")
-ALLOWED_HOSTS = [h.strip() for h in _hosts_env.split(",") if h.strip()]
+# -----------------------------------------------------------------------------
+# Host / CSRF configuration
+# -----------------------------------------------------------------------------
+# We always allow localhost + Render's default subdomain so a deploy never 400s
+# due to a misconfigured env var. Extra hosts can be added in two ways:
+#   1. SITE_DOMAIN=example.com,www.example.com   (simple additive list)
+#   2. ALLOWED_HOSTS=a,b,c                        (full override, power users)
+#
+# The CSRF_TRUSTED_ORIGINS list is derived automatically from the resolved
+# ALLOWED_HOSTS (https:// is assumed, wildcard entries are handled). Any
+# explicit CSRF_TRUSTED_ORIGINS env var is additive, not a replacement.
 
-_csrf_env = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(",") if o.strip()]
+_default_hosts = ["127.0.0.1", "localhost", ".onrender.com"]
+_site_domains = [h.strip() for h in os.environ.get("SITE_DOMAIN", "").split(",") if h.strip()]
+_hosts_override = os.environ.get("ALLOWED_HOSTS", "").strip()
+
+if _hosts_override:
+    ALLOWED_HOSTS = [h.strip() for h in _hosts_override.split(",") if h.strip()]
+    # Make sure the defaults are still present so health checks & Render subdomain never 400.
+    for _h in _default_hosts:
+        if _h not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_h)
+else:
+    ALLOWED_HOSTS = list(_default_hosts) + _site_domains
+
+
+def _origin_for(host: str) -> str:
+    """Convert an ALLOWED_HOSTS entry into a CSRF-trusted https:// origin."""
+    host = host.strip().lstrip("*")
+    if host.startswith("."):
+        # `.onrender.com` → `https://*.onrender.com`
+        return f"https://*{host}"
+    return f"https://{host}"
+
+
+_csrf_env = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
+_derived_csrf = [_origin_for(h) for h in ALLOWED_HOSTS if h not in ("127.0.0.1", "localhost")]
+
+CSRF_TRUSTED_ORIGINS = []
+for _origin in list(_csrf_env) + _derived_csrf:
+    if _origin and _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 
 
 # Application definition
