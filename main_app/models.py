@@ -84,9 +84,9 @@ class CustomUser(AbstractUser):
     )
     phone_number = models.CharField(max_length=20, blank=True, default="")
     user_type = models.CharField(default=1, choices=USER_TYPE, max_length=1)
-    gender = models.CharField(max_length=1, choices=GENDER)
-    profile_pic = models.ImageField()
-    address = models.TextField()
+    gender = models.CharField(max_length=1, choices=GENDER, blank=True, default="")
+    profile_pic = models.ImageField(blank=True, null=True)
+    address = models.TextField(blank=True, default="")
     fcm_token = models.TextField(default="")  # For firebase notifications
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
