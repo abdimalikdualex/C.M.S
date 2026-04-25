@@ -9,10 +9,21 @@
         <div class="row">
             <div class="col-md-12">
                 <form method="get" class="form-inline mb-3">
-                    <input type="search" name="q" value="{{ search_q }}" class="form-control mr-2"
+                    <input type="search" name="q" value="{{ search_q }}" class="form-control mr-2 mb-2"
                         placeholder="Search name, phone, course or student ID">
-                    <button type="submit" class="btn btn-primary">Search</button>
+                    <select name="session" class="form-control mr-2 mb-2">
+                        <option value="">All sessions</option>
+                        {% for s in all_sessions %}
+                        <option value="{{ s.id }}" {% if filter_session_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.intake_label }}{% if s.is_active %} (active){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    {% if only_pending %}<input type="hidden" name="pending" value="1">{% endif %}
+                    {% if only_new_today %}<input type="hidden" name="new_today" value="1">{% endif %}
+                    <button type="submit" class="btn btn-primary mb-2">Search</button>
                 </form>
+                <div class="mb-2">
+                    <span class="text-muted">{{ students|length }} student{{ students|length|pluralize }}</span>
+                </div>
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">{{page_title}}</h3>
@@ -27,6 +38,7 @@
                                     <th>Email</th>
                                     <th>Gender</th>
                                     <th>Course</th>
+                                    <th>Session</th>
                                     <th>Avatar</th>
                                     <th>Actions</th>
                                 </tr>
@@ -39,6 +51,7 @@
                                     <td>{{student.email}}</td>
                                     <td>{{student.gender}}</td>
                                     <td>{{student.student.course.name}}</td>
+                                    <td>{{ student.student.session.intake_label|default:"--" }}</td>
                                     <td>
                                         {% if student.profile_pic == ""  %}
                                         No Image

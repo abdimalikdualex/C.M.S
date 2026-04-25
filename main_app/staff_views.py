@@ -11,9 +11,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
 from .models import *
 from .money import format_money
+from .roles import require_admission_desk, require_instructor
 from .sms_notifications import notify_admission_confirmed
 
 def _require_staff_role(request, allowed_roles):
@@ -33,28 +35,7 @@ def _instructor_sessions(staff):
     return Session.objects.active_or_latest()
 
 
-def _ensure_enrollment(student, course, start_date=None, session=None):
-    if not course:
-        return None
-    total_fee = course.total_fee_for_student()
-    selected_session = session or Session.objects.active_or_latest().first()
-    enrollment, created = Enrollment.objects.get_or_create(
-        student=student,
-        course=course,
-        defaults={
-            "start_date": start_date or timezone.localdate(),
-            "total_fee": total_fee,
-            "status": "active",
-            "session": selected_session,
-        },
-    )
-    if not created and (enrollment.total_fee != total_fee or enrollment.session_id != getattr(selected_session, "id", None)):
-        enrollment.total_fee = total_fee
-        enrollment.session = selected_session
-        enrollment.save(update_fields=["total_fee", "session"])
-    return enrollment
-
-
+@require_admission_desk
 def admission_add_student(request):
     staff = _require_staff_role(request, allowed_roles={"admission", "finance"})
     if staff is None:
@@ -103,7 +84,14 @@ def admission_add_student(request):
                 if enrollment_date:
                     user.student.enrollment_date = enrollment_date
                 user.save()
-                enrollment = _ensure_enrollment(user.student, course, enrollment_date, session=session)
+                effective_total_fee = student_form.cleaned_data.get("effective_total_fee")
+                enrollment = _ensure_enrollment(
+                    user.student,
+                    course,
+                    enrollment_date,
+                    session=session,
+                    total_fee_override=effective_total_fee,
+                )
                 AuditLog.objects.create(
                     action="student_registered",
                     detail=f"Student {user.student.student_id} enrolled to {course.name if course else 'N/A'} by admission desk.",
@@ -233,6 +221,7 @@ def staff_home(request):
     return render(request, 'staff_template/home_content.html', context)
 
 
+@require_instructor
 def staff_take_attendance(request):
     staff = get_object_or_404(Staff, admin=request.user)
     subjects = Subject.objects.filter(staff_id=staff).select_related("course")
@@ -588,6 +577,7 @@ def _finance_reports_csv():
     return resp
 
 
+@require_admission_desk
 def staff_finance_reports(request):
     staff = _require_staff_role(request, {"admission", "finance"})
     if staff is None:
@@ -621,6 +611,7 @@ def staff_finance_reports(request):
     return render(request, "staff_template/staff_finance_reports.html", context)
 
 
+@require_admission_desk
 def staff_record_payment(request):
     staff = _require_staff_role(request, {"admission", "finance"})
     if staff is None:
@@ -656,6 +647,7 @@ def staff_record_payment(request):
     )
 
 
+@require_admission_desk
 def admission_enroll_existing_student(request):
     staff = _require_staff_role(request, {"admission", "finance"})
     if staff is None:
@@ -676,7 +668,14 @@ def admission_enroll_existing_student(request):
         if session and student.session_id != session.id:
             student.session = session
             student.save(update_fields=["session"])
-        enrollment = _ensure_enrollment(student, course, start_date, session=session)
+        agreed_total_fee = form.cleaned_data.get("total_fee")
+        enrollment = _ensure_enrollment(
+            student,
+            course,
+            start_date,
+            session=session,
+            total_fee_override=agreed_total_fee,
+        )
         created_payment = None
         if pay_amount > 0:
             created_payment = Payment.objects.create(

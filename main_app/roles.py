@@ -5,7 +5,38 @@ CustomUser.user_type: "1" = HOD / Super Admin, "2" = Staff, "3" = Student
 Staff.role: instructor | admission | finance
 
 Admission + finance share one operations desk (register, enroll, payments, receipts).
+
+Permission matrix (concise; middleware in main_app.middleware enforces routing,
+forms enforce field exposure, and decorators below enforce per-view access):
+
+  Superadmin (HOD)
+    - Full access to all admin pages, course/session/staff/student management,
+      finance reports, audit log, and dashboards. Cannot access student-only pages.
+
+  Admission/Finance desk (one combined desk)
+    - Can: register students (StudentForm with course+session+agreed fee),
+      enroll existing students into more courses, record payments, print
+      receipts, view/filter students by course->session, view finance reports.
+    - Cannot: take attendance, manage assessments, edit grades, manage other
+      staff, edit core course definitions outside HOD_ALLOWED_FOR_ADMISSION_DESK.
+    - Form rule: StaffForm strips the `course` field for these roles.
+
+  Instructor
+    - Can: view assigned course students, take/update attendance, create
+      assessments, grade submissions, enter results.
+    - Cannot: register students, record payments, view finance reports, manage
+      other staff or sessions.
+    - Form rule: instructors must have a teaching course assignment.
+
+  Student
+    - Can: view own attendance, fees, results, assessments; submit work; apply
+      leave; send feedback.
+    - Cannot: see any admin/staff page.
 """
+from functools import wraps
+
+from django.contrib import messages
+from django.shortcuts import redirect
 from django.urls import reverse
 
 SUPERADMIN = "superadmin"
@@ -135,3 +166,55 @@ def user_has_permission(user, perm: str) -> bool:
     if "all_access" in allowed:
         return True
     return perm in allowed
+
+
+def _denied_redirect(request, friendly_message):
+    """Redirect to the user's own dashboard with an explanatory flash."""
+    messages.error(request, friendly_message)
+    role = get_dashboard_role(request.user)
+    if role == SUPERADMIN:
+        return redirect(reverse("superadmin_dashboard"))
+    if role == ADMISSION_OFFICER:
+        return redirect(reverse("admission_dashboard"))
+    if role == INSTRUCTOR:
+        return redirect(reverse("instructor_dashboard"))
+    if role == STUDENT:
+        return redirect(reverse("student_dashboard"))
+    return redirect(reverse("login_page"))
+
+
+def require_admission_desk(view_func):
+    """
+    Allow superadmins and admission/finance staff. Belt-and-braces guard for
+    sensitive money/registration views; complements main_app.middleware.
+    """
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(reverse("login_page"))
+        role = get_dashboard_role(request.user)
+        if role in (SUPERADMIN, ADMISSION_OFFICER):
+            return view_func(request, *args, **kwargs)
+        return _denied_redirect(
+            request, "This action is restricted to admission/finance staff."
+        )
+
+    return _wrapped
+
+
+def require_instructor(view_func):
+    """Allow superadmins and instructors only. Used by attendance/grade tools."""
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(reverse("login_page"))
+        role = get_dashboard_role(request.user)
+        if role in (SUPERADMIN, INSTRUCTOR):
+            return view_func(request, *args, **kwargs)
+        return _denied_redirect(
+            request, "This action is restricted to instructors."
+        )
+
+    return _wrapped

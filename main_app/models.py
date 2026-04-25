@@ -42,28 +42,50 @@ class Session(models.Model):
         def latest_first(self):
             return self.order_by("-start_year", "-end_year", "-id")
 
-        def active(self):
+        def explicit_active(self):
+            return self.filter(is_active=True).latest_first()
+
+        def date_active(self):
             today = timezone.localdate()
             return self.filter(start_year__lte=today, end_year__gte=today).latest_first()
 
+        def active(self):
+            """
+            Sessions an admin has marked active, falling back to date-based active.
+            """
+            qs = self.explicit_active()
+            if qs.exists():
+                return qs
+            return self.date_active()
+
         def active_or_latest(self):
-            active_qs = self.active()
-            if active_qs.exists():
-                return active_qs
+            qs = self.active()
+            if qs.exists():
+                return qs
             return self.latest_first()
 
     start_year = models.DateField()
     end_year = models.DateField()
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Mark exactly one session as the current intake. New registrations default to it.",
+    )
     objects = SessionQuerySet.as_manager()
 
     @property
-    def is_active(self) -> bool:
+    def is_within_dates(self) -> bool:
         today = timezone.localdate()
         return bool(self.start_year and self.end_year and self.start_year <= today <= self.end_year)
 
     @property
     def intake_label(self) -> str:
         return f"{self.start_year:%b %Y} Intake"
+
+    def save(self, *args, **kwargs):
+        # Enforce a single-active-session invariant at write time.
+        if self.is_active:
+            Session.objects.exclude(pk=self.pk).filter(is_active=True).update(is_active=False)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.intake_label} ({self.start_year:%Y-%m-%d} to {self.end_year:%Y-%m-%d})"
@@ -177,7 +199,13 @@ class Course(models.Model):
 class Student(models.Model):
     admin = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.DO_NOTHING, null=True, blank=False)
-    session = models.ForeignKey(Session, on_delete=models.DO_NOTHING, null=True)
+    session = models.ForeignKey(
+        Session,
+        on_delete=models.PROTECT,
+        null=False,
+        blank=False,
+        help_text="Intake/session the student belongs to. Required.",
+    )
     student_id = models.CharField(max_length=32, unique=True, blank=True, default="")
     enrollment_date = models.DateField(default=timezone.now)
 
@@ -185,6 +213,14 @@ class Student(models.Model):
         return str(self.admin)
 
     def total_fee(self):
+        """
+        Source of truth: when any Enrollment row exists for this student, the
+        sum of `Enrollment.total_fee` values is authoritative. That field may
+        have been manually overridden at registration (scholarship, sibling
+        discount, agreed price), so we never recompute from the course default.
+
+        Fallback (no enrollments yet): use the student's primary course default.
+        """
         enrollments = self.enrollments.all()
         if enrollments.exists():
             total = sum((int(e.total_fee or 0) for e in enrollments), 0)
@@ -220,7 +256,13 @@ class Enrollment(models.Model):
     total_fee = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS, default="active")
     enrollment_level = models.CharField(max_length=20, choices=LEVEL, default="", blank=True)
-    session = models.ForeignKey(Session, null=True, blank=True, on_delete=models.SET_NULL)
+    session = models.ForeignKey(
+        Session,
+        null=False,
+        blank=False,
+        on_delete=models.PROTECT,
+        help_text="Intake/session the enrollment belongs to. Required.",
+    )
     assigned_instructor = models.ForeignKey(
         "Staff",
         null=True,
@@ -531,7 +573,15 @@ def create_user_profile(sender, instance, created, **kwargs):
         if ut == "2":
             Staff.objects.create(admin=instance)
         if ut == "3":
-            Student.objects.create(admin=instance)
+            # Student.session is required; auto-attach the current active session.
+            # Views may overwrite this with the explicitly chosen session right after.
+            default_session = Session.objects.active_or_latest().first()
+            if default_session is None:
+                raise RuntimeError(
+                    "Cannot register a student: no Session exists. "
+                    "Create at least one Session (Manage Sessions) before registering students."
+                )
+            Student.objects.create(admin=instance, session=default_session)
 
 
 @receiver(post_save, sender=CustomUser)

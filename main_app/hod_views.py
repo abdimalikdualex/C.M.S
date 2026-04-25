@@ -16,35 +16,10 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import UpdateView
 
+from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
 from .models import *
 from .sms_notifications import notify_admission_confirmed
-
-
-def _ensure_enrollment(student, course, start_date=None):
-    if not course:
-        return None
-    total_fee = course.total_fee_for_student()
-    selected_session = None
-    if hasattr(student, "session") and student.session_id:
-        selected_session = student.session
-    if selected_session is None:
-        selected_session = Session.objects.active_or_latest().first()
-    enrollment, created = Enrollment.objects.get_or_create(
-        student=student,
-        course=course,
-        defaults={
-            "start_date": start_date or timezone.localdate(),
-            "total_fee": total_fee,
-            "status": "active",
-            "session": selected_session,
-        },
-    )
-    if not created and (enrollment.total_fee != total_fee or enrollment.session_id != getattr(selected_session, "id", None)):
-        enrollment.total_fee = total_fee
-        enrollment.session = selected_session
-        enrollment.save(update_fields=["total_fee", "session"])
-    return enrollment
 
 
 def admin_home(request):
@@ -243,7 +218,14 @@ def add_student(request):
                 if enrollment_date:
                     user.student.enrollment_date = enrollment_date
                 user.save()
-                enrollment = _ensure_enrollment(user.student, course, enrollment_date)
+                effective_total_fee = student_form.cleaned_data.get("effective_total_fee")
+                enrollment = _ensure_enrollment(
+                    user.student,
+                    course,
+                    enrollment_date,
+                    session=session,
+                    total_fee_override=effective_total_fee,
+                )
                 AuditLog.objects.create(
                     action="student_registered",
                     detail=f"Student {user.student.student_id} enrolled to {course.name if course else 'N/A'} by admin.",
@@ -305,7 +287,14 @@ def admin_enroll_existing_student(request):
         if session and student.session_id != session.id:
             student.session = session
             student.save(update_fields=["session"])
-        enrollment = _ensure_enrollment(student, course, start_date)
+        agreed_total_fee = form.cleaned_data.get("total_fee")
+        enrollment = _ensure_enrollment(
+            student,
+            course,
+            start_date,
+            session=session,
+            total_fee_override=agreed_total_fee,
+        )
         created_payment = None
         if pay_amount > 0:
             created_payment = Payment.objects.create(
@@ -397,6 +386,8 @@ def manage_student(request):
     q = (request.GET.get("q") or "").strip()
     only_pending = request.GET.get("pending") == "1"
     only_new_today = request.GET.get("new_today") == "1"
+    raw_session = (request.GET.get("session") or "").strip()
+    session_id = int(raw_session) if raw_session.isdigit() else None
     students = CustomUser.objects.filter(user_type=3)
     if q:
         students = students.filter(
@@ -407,6 +398,8 @@ def manage_student(request):
             | Q(student__student_id__icontains=q)
             | Q(student__course__name__icontains=q)
         )
+    if session_id is not None:
+        students = students.filter(student__session_id=session_id)
     if only_new_today:
         students = students.filter(student__enrollment_date=timezone.localdate())
     if only_pending:
@@ -417,6 +410,8 @@ def manage_student(request):
         'search_q': q,
         'only_pending': only_pending,
         'only_new_today': only_new_today,
+        'filter_session_id': raw_session,
+        'all_sessions': Session.objects.latest_first(),
     }
     return render(request, "hod_template/manage_student.html", context)
 
@@ -497,10 +492,14 @@ def edit_staff(request, staff_id):
 def edit_student(request, student_id):
     student = get_object_or_404(Student, id=student_id)
     form = StudentForm(request.POST or None, instance=student)
+    enrollments = (
+        student.enrollments.select_related("course", "session").order_by("-start_date", "-id")
+    )
     context = {
         'form': form,
         'student_id': student_id,
-        'page_title': 'Edit Student'
+        'page_title': 'Edit Student',
+        'enrollments': enrollments,
     }
     if request.method == 'POST':
         if form.is_valid():
@@ -542,6 +541,47 @@ def edit_student(request, student_id):
             messages.error(request, "Please Fill Form Properly!")
     else:
         return render(request, "hod_template/edit_student_template.html", context)
+
+
+def edit_enrollment_fee(request, enrollment_id):
+    """Per-enrollment manual fee override; audit-logged."""
+    enrollment = get_object_or_404(Enrollment.objects.select_related("student"), id=enrollment_id)
+    student_id = enrollment.student_id
+    if request.method != "POST":
+        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    raw = (request.POST.get("total_fee") or "").strip()
+    try:
+        new_fee = int(raw)
+        if new_fee < 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        messages.error(request, "Total fee must be a whole non-negative number.")
+        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    paid = int(enrollment.amount_paid or 0)
+    if new_fee < paid:
+        messages.error(
+            request,
+            f"Agreed total fee ({new_fee}) cannot be less than what has already been paid ({paid}).",
+        )
+        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    if new_fee == int(enrollment.total_fee or 0):
+        messages.info(request, "No change; agreed total fee is already that value.")
+        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    old_fee = int(enrollment.total_fee or 0)
+    enrollment.total_fee = new_fee
+    enrollment.save(update_fields=["total_fee"])
+    AuditLog.objects.create(
+        action="enrollment_fee_updated",
+        detail=(
+            f"Agreed total fee for {enrollment.student.student_id} on "
+            f"{enrollment.course.name if enrollment.course else 'N/A'} changed "
+            f"from KES {old_fee} to KES {new_fee}."
+        ),
+        student=enrollment.student,
+        user=request.user,
+    )
+    messages.success(request, "Agreed total fee updated.")
+    return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
 
 
 def edit_course(request, course_id):
@@ -613,6 +653,18 @@ def manage_session(request):
     sessions = Session.objects.latest_first()
     context = {'sessions': sessions, 'page_title': 'Manage Sessions'}
     return render(request, "hod_template/manage_session.html", context)
+
+
+def set_active_session(request, session_id):
+    """Mark one session active for the system. Single-active invariant enforced in Session.save()."""
+    session = get_object_or_404(Session, id=session_id)
+    if not session.is_active:
+        session.is_active = True
+        session.save(update_fields=["is_active"])
+        messages.success(request, f"{session.intake_label} is now the active session.")
+    else:
+        messages.info(request, "This session is already active.")
+    return redirect(reverse('manage_session'))
 
 
 def edit_session(request, session_id):

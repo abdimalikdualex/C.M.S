@@ -109,9 +109,12 @@
     function refreshFeePreview(){
         const courseSelect = document.getElementById("id_course");
         const amountInput = document.getElementById("id_pay_amount");
+        const overrideInput = document.getElementById("id_agreed_total_fee");
         if (!courseSelect){ return; }
         const label = courseSelect.options[courseSelect.selectedIndex] ? courseSelect.options[courseSelect.selectedIndex].text : "";
-        const total = parseFeeFromCourseLabel(label);
+        const courseTotal = parseFeeFromCourseLabel(label);
+        const overrideValue = overrideInput ? parseFloat(overrideInput.value || "0") : 0;
+        const total = overrideValue > 0 ? overrideValue : courseTotal;
         const paid = parseFloat((amountInput && amountInput.value) || "0") || 0;
         const balance = Math.max(total - paid, 0);
         if (total > 0){
@@ -124,12 +127,12 @@
         }
     }
     document.addEventListener("change", function(e){
-        if (e.target && (e.target.id === "id_course" || e.target.id === "id_pay_amount")){
+        if (e.target && (e.target.id === "id_course" || e.target.id === "id_pay_amount" || e.target.id === "id_agreed_total_fee")){
             refreshFeePreview();
         }
     });
     document.addEventListener("keyup", function(e){
-        if (e.target && e.target.id === "id_pay_amount"){
+        if (e.target && (e.target.id === "id_pay_amount" || e.target.id === "id_agreed_total_fee")){
             refreshFeePreview();
         }
     });

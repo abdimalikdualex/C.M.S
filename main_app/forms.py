@@ -147,6 +147,13 @@ class StudentForm(CustomUserForm):
         widget=DateInput(attrs={"type": "date"}),
         help_text="Defaults to today if left blank.",
     )
+    agreed_total_fee = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Agreed total fee (KES)",
+        help_text="Defaults to the course fee. Override only if a different fee was agreed (scholarship, sibling discount, etc.).",
+        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+    )
 
     def __init__(self, *args, **kwargs):
         super(StudentForm, self).__init__(*args, **kwargs)
@@ -158,7 +165,7 @@ class StudentForm(CustomUserForm):
         self.fields["last_name"].required = False
         self.fields["profile_pic"].required = False
         self.fields["session"].required = True
-        self.fields["session"].queryset = Session.objects.active_or_latest()
+        self.fields["session"].queryset = Session.objects.latest_first()
         self.fields["session"].empty_label = "Select intake/session"
         self.fields["enrollment_date"].initial = timezone.now().date()
         if is_new_student:
@@ -167,9 +174,9 @@ class StudentForm(CustomUserForm):
             self.fields["phone_number"].required = False
             self.fields["password"].required = False
             self.fields["course"].help_text = "Required — select the course for this learner."
-            latest_active = Session.objects.active_or_latest().first()
-            if latest_active:
-                self.fields["session"].initial = latest_active.pk
+            active_session = Session.objects.active().first()
+            if active_session:
+                self.fields["session"].initial = active_session.pk
         else:
             self.fields["course"].required = True
             self.fields["first_name"].required = True
@@ -215,10 +222,14 @@ class StudentForm(CustomUserForm):
         reference = (cleaned.get("pay_reference") or "").strip()
         if amount and mode == "mpesa" and not reference:
             self.add_error("pay_reference", "M-Pesa reference is required for mobile money payments.")
-        if course and amount and amount > int(course.total_fee_for_student() or 0):
+        agreed = cleaned.get("agreed_total_fee")
+        course_default_fee = int(course.total_fee_for_student() or 0) if course else 0
+        effective_total_fee = int(agreed) if agreed not in (None, "") else course_default_fee
+        cleaned["effective_total_fee"] = effective_total_fee
+        if amount and effective_total_fee and amount > effective_total_fee:
             self.add_error(
                 "pay_amount",
-                "Initial payment cannot exceed the total course fee.",
+                "Initial payment cannot exceed the agreed total fee.",
             )
         return cleaned
 
@@ -387,6 +398,13 @@ class EnrollExistingStudentForm(forms.Form):
     course = forms.ModelChoiceField(required=True, queryset=Course.objects.all().order_by("name"))
     session = forms.ModelChoiceField(required=True, queryset=Session.objects.none(), label="Session / intake")
     start_date = forms.DateField(required=False, widget=DateInput(attrs={"type": "date"}))
+    agreed_total_fee = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Agreed total fee (KES)",
+        help_text="Defaults to the course fee. Override only if a different fee was agreed.",
+        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+    )
     pay_amount = forms.IntegerField(
         required=False,
         min_value=0,
@@ -400,11 +418,11 @@ class EnrollExistingStudentForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["start_date"].initial = timezone.now().date()
-        self.fields["session"].queryset = Session.objects.active_or_latest()
+        self.fields["session"].queryset = Session.objects.latest_first()
         self.fields["session"].empty_label = "Select intake/session"
-        latest_active = Session.objects.active_or_latest().first()
-        if latest_active:
-            self.fields["session"].initial = latest_active.pk
+        active_session = Session.objects.active().first()
+        if active_session:
+            self.fields["session"].initial = active_session.pk
         for f in self.visible_fields():
             f.field.widget.attrs.setdefault("class", "form-control")
 
@@ -427,11 +445,13 @@ class EnrollExistingStudentForm(forms.Form):
         if Enrollment.objects.filter(student=student, course=course).exists():
             raise forms.ValidationError("Student is already enrolled in this course.")
         amt = int(cleaned.get("pay_amount") or 0)
-        total_fee = int(course.total_fee_for_student() or 0)
-        if amt and amt > total_fee:
-            raise forms.ValidationError("Initial payment cannot exceed total course fee.")
+        course_default_fee = int(course.total_fee_for_student() or 0)
+        agreed = cleaned.get("agreed_total_fee")
+        effective_total_fee = int(agreed) if agreed not in (None, "") else course_default_fee
+        if amt and effective_total_fee and amt > effective_total_fee:
+            raise forms.ValidationError("Initial payment cannot exceed the agreed total fee.")
         cleaned["student"] = student
-        cleaned["total_fee"] = total_fee
+        cleaned["total_fee"] = effective_total_fee
         return cleaned
 
 
