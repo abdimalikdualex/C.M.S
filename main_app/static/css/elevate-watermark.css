@@ -1,0 +1,87 @@
+/*
+ * ELEVATE COLLEGE — global watermark
+ *
+ * Renders a centered, semi-transparent ELEVATE COLLEGE logo behind the page
+ * content for two contexts:
+ *   1. Print  — every page that extends main_app/base.html (receipts,
+ *      reports, student lists, etc.) automatically gets the watermark.
+ *   2. Login  — login.html links this file directly so the same logo shows
+ *      as a subtle background. Layout, card position and form structure
+ *      are untouched.
+ *
+ * Driver: a single, empty <div class="elevate-watermark" aria-hidden="true">
+ * placed at the top of <body>. We use a dedicated element (instead of body
+ * pseudo-elements) so we never collide with existing ::before / ::after
+ * decoration that the login theme already uses.
+ *
+ * Strictly UI-only. No JS hooks, no DOM manipulation, no backend changes.
+ */
+
+/* Hidden by default on screens (this is the print watermark host); the
+   login page opts in via body.login-page-premium below. */
+.elevate-watermark {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-image: url("../dist/img/elevate_logo.png");
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: contain;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ---------- 1. PRINT WATERMARK (every printable page) ----------------- */
+@media print {
+    /* Force the host body to be a positioning context with a clean white
+       backdrop so the faint logo is visible behind text. */
+    html, body {
+        background: #fff !important;
+    }
+
+    .elevate-watermark {
+        display: block;
+        width: 70vw;
+        height: 70vh;
+        max-width: 18cm;
+        max-height: 18cm;
+        opacity: 0.07;
+    }
+
+    /* Keep the actual page content above the watermark on every printed
+       sheet. AdminLTE's wrappers are the natural anchors. */
+    .wrapper,
+    .content-wrapper,
+    .content,
+    .receipt-box,
+    main,
+    section.content {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Reasonable print margins for A4 receipts/reports. */
+    @page {
+        margin: 16mm;
+    }
+}
+
+/* ---------- 2. LOGIN PAGE BACKGROUND WATERMARK ------------------------ */
+/* Scoped to the login body class so it does not bleed into other screens. */
+body.login-page-premium .elevate-watermark {
+    display: block;
+    width: min(60vw, 640px);
+    height: min(60vw, 640px);
+    opacity: 0.06;
+    filter: blur(0.5px);
+}
+
+/* Make sure the login card and form sit above the watermark. */
+body.login-page-premium .login-wrapper,
+body.login-page-premium .login-box,
+body.login-page-premium .login-card {
+    position: relative;
+    z-index: 1;
+}

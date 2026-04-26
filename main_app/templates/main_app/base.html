@@ -20,6 +20,8 @@
     
     <!-- Theme style -->
     <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css'%} ">
+    <!-- ELEVATE COLLEGE — print watermark for receipts/reports/student lists -->
+    <link rel="stylesheet" href="{% static 'css/elevate-watermark.css' %}">
     <!-- overlayScrollbars -->
     <link rel="stylesheet" href="{% static 'plugins/overlayScrollbars/css/OverlayScrollbars.min.css'%} ">
     <!-- Daterange picker -->
@@ -33,6 +35,7 @@
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed">
+    <div class="elevate-watermark" aria-hidden="true"></div>
     <div class="wrapper">
 
         <!-- Navbar -->
