@@ -92,7 +92,7 @@ class Session(models.Model):
 
 
 class CustomUser(AbstractUser):
-    USER_TYPE = ((1, "HOD"), (2, "Staff"), (3, "Student"))
+    USER_TYPE = ((1, "HOD"), (2, "Staff"), (3, "Student"), (4, "Director"))
     GENDER = [("M", "Male"), ("F", "Female")]
     
     
@@ -144,6 +144,21 @@ class CustomUser(AbstractUser):
 class Admin(models.Model):
     admin = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
 
+
+class Director(models.Model):
+    """
+    Manager / Director profile.
+
+    Decision-focused, read-only role. Their CustomUser has user_type='4'.
+    No editable fields here in the MVP — the row exists so we have a stable
+    extension point (future: department, signature image, etc.) and so the
+    presence/absence of a profile mirrors the Admin/Staff/Student pattern.
+    """
+
+    admin = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.admin)
 
 
 class Course(models.Model):
@@ -582,6 +597,8 @@ def create_user_profile(sender, instance, created, **kwargs):
                     "Create at least one Session (Manage Sessions) before registering students."
                 )
             Student.objects.create(admin=instance, session=default_session)
+        if ut == "4":
+            Director.objects.create(admin=instance)
 
 
 @receiver(post_save, sender=CustomUser)
@@ -593,6 +610,8 @@ def save_user_profile(sender, instance, **kwargs):
         instance.staff.save()
     if ut == "3":
         instance.student.save()
+    if ut == "4":
+        instance.director.save()
 
 
 @receiver(post_save, sender=Student)

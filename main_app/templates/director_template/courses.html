@@ -1,0 +1,47 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Courses ({{ courses|length }})</h3>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Level</th>
+              <th>Plan</th>
+              <th>Duration</th>
+              <th class="text-right">Full fee (KES)</th>
+              <th class="text-right">Monthly fee (KES)</th>
+              <th class="text-right">Enrolled</th>
+              <th class="text-right">Collected (KES)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in courses %}
+            <tr>
+              <td>{{ c.name }}</td>
+              <td>{{ c.get_level_display|default:"—" }}</td>
+              <td>{{ c.get_payment_plan_display }}</td>
+              <td>{{ c.duration_value }} {{ c.get_duration_unit_display|lower }}</td>
+              <td class="text-right">{{ c.full_fee|intcomma }}</td>
+              <td class="text-right">{{ c.monthly_fee|intcomma }}</td>
+              <td class="text-right">{{ c.enrolled }}</td>
+              <td class="text-right">{{ c.paid|default:0|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-3">No courses defined yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

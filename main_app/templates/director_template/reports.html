@@ -1,0 +1,53 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="alert alert-light border mb-3">
+      Snapshot:
+      <strong>{{ total_students|intcomma }}</strong> students ·
+      <strong>{{ active_courses|intcomma }}</strong> courses ·
+      <strong>KES {{ total_revenue|intcomma }}</strong> collected ·
+      <strong>KES {{ outstanding|intcomma }}</strong> outstanding.
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Students report</h3></div>
+          <div class="card-body">
+            <p class="text-muted small">Full student roster including course, session and enrollment date. CSV — opens directly in Excel.</p>
+            <a href="{% url 'director_report_students_csv' %}" class="btn btn-primary btn-block">
+              <i class="fas fa-download"></i> Download students.csv
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Financial report</h3></div>
+          <div class="card-body">
+            <p class="text-muted small">KPI snapshot + per-course agreed / collected / outstanding breakdown.</p>
+            <a href="{% url 'director_report_finance_csv' %}" class="btn btn-success btn-block">
+              <i class="fas fa-download"></i> Download finance_summary.csv
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Attendance summary</h3></div>
+          <div class="card-body">
+            <p class="text-muted small">Per-student present / absent counts and attendance percentage to-date.</p>
+            <a href="{% url 'director_report_attendance_csv' %}" class="btn btn-info btn-block">
+              <i class="fas fa-download"></i> Download attendance_summary.csv
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

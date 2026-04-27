@@ -1,0 +1,99 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Filter</h3>
+      </div>
+      <form class="card-body" method="get">
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label>Course</label>
+            <select name="course" class="form-control">
+              <option value="">All</option>
+              {% for c in all_courses %}
+                <option value="{{ c.id }}" {% if filter_course_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group col-md-3">
+            <label>Session</label>
+            <select name="session" class="form-control">
+              <option value="">All</option>
+              {% for s in all_sessions %}
+                <option value="{{ s.id }}" {% if filter_session_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.intake_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group col-md-3">
+            <label>Status</label>
+            <select name="status" class="form-control">
+              <option value="active" {% if filter_status == 'active' %}selected{% endif %}>Active</option>
+              <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>Completed</option>
+              <option value="cancelled" {% if filter_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+              <option value="all" {% if filter_status == 'all' %}selected{% endif %}>All</option>
+            </select>
+          </div>
+          <div class="form-group col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary mr-2">Apply</button>
+            <a class="btn btn-default" href="{% url 'director_students' %}">Reset</a>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    {% for course_bucket in course_groups %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">
+          {{ course_bucket.course.name|default:"(no course)" }}
+          <span class="badge badge-info ml-2">{{ course_bucket.student_count }} students</span>
+          <span class="badge badge-success ml-1">Paid KES {{ course_bucket.paid_total|intcomma }}</span>
+          <span class="badge badge-warning ml-1">Outstanding KES {{ course_bucket.outstanding_total|intcomma }}</span>
+        </h3>
+      </div>
+      <div class="card-body p-0">
+        {% for sess_bucket in course_bucket.sessions %}
+        <div class="px-3 py-2 bg-light border-bottom">
+          <strong>{{ sess_bucket.session.intake_label|default:"(no session)" }}</strong>
+          <span class="text-muted small ml-2">
+            {{ sess_bucket.student_count }} students ·
+            paid KES {{ sess_bucket.paid_total|intcomma }} ·
+            outstanding KES {{ sess_bucket.outstanding_total|intcomma }}
+          </span>
+        </div>
+        <table class="table table-sm table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Student ID</th><th>Name</th><th>Email</th>
+              <th class="text-right">Total fee</th>
+              <th class="text-right">Paid</th>
+              <th class="text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in sess_bucket.enrollments %}
+            <tr>
+              <td>{{ e.student.student_id }}</td>
+              <td>{{ e.student.admin.get_full_name }}</td>
+              <td>{{ e.student.admin.email }}</td>
+              <td class="text-right">{{ e.total_fee|intcomma }}</td>
+              <td class="text-right">{{ e.paid_total|intcomma }}</td>
+              <td class="text-right">{{ e.balance_remaining|intcomma }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-light text-center">No students match the selected filters.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock content %}

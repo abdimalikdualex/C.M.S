@@ -1,0 +1,112 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    {% if current_session %}
+    <div class="alert alert-info py-2 mb-3">
+      <i class="fas fa-calendar-check"></i>
+      Active session: <strong>{{ current_session.intake_label }}</strong>
+      ({{ current_session.start_year|date:"Y-m-d" }} → {{ current_session.end_year|date:"Y-m-d" }})
+    </div>
+    {% else %}
+    <div class="alert alert-warning py-2 mb-3">
+      No active session. Open <a href="{% url 'director_sessions' %}">Sessions</a> to mark one active.
+    </div>
+    {% endif %}
+
+    <div class="row">
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3>{{ total_students|intcomma }}</h3>
+            <p>Total Students</p>
+          </div>
+          <div class="icon"><i class="nav-icon fas fa-user-graduate"></i></div>
+          <a href="{% url 'director_students' %}" class="small-box-footer">View all <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3>KES {{ total_revenue|intcomma }}</h3>
+            <p>Total Revenue (all-time)</p>
+          </div>
+          <div class="icon"><i class="nav-icon fas fa-coins"></i></div>
+          <a href="{% url 'director_finance' %}" class="small-box-footer">Finance <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+          <div class="inner">
+            <h3>KES {{ outstanding|intcomma }}</h3>
+            <p>Outstanding Fees</p>
+          </div>
+          <div class="icon"><i class="nav-icon fas fa-exclamation-circle"></i></div>
+          <a href="{% url 'director_finance' %}" class="small-box-footer">Drill down <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-purple">
+          <div class="inner">
+            <h3>{{ active_courses|intcomma }}</h3>
+            <p>Active Courses</p>
+          </div>
+          <div class="icon"><i class="nav-icon fas fa-th-list"></i></div>
+          <a href="{% url 'director_courses' %}" class="small-box-footer">Programs <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Active session</h3></div>
+          <div class="card-body">
+            {% if current_session %}
+              <p class="mb-1"><strong>{{ current_session.intake_label }}</strong></p>
+              <p class="mb-1 text-muted small">
+                {{ current_session.start_year|date:"Y-m-d" }} →
+                {{ current_session.end_year|date:"Y-m-d" }}
+              </p>
+              <p class="mb-0">Revenue this session: <strong>KES {{ revenue_current_session|intcomma }}</strong></p>
+            {% else %}
+              <p class="text-muted">No session is currently marked active.</p>
+            {% endif %}
+            <p class="mt-2 mb-0">
+              <a href="{% url 'director_sessions' %}" class="btn btn-sm btn-outline-primary">
+                Manage sessions
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Recent payments</h3></div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-striped mb-0">
+              <thead><tr><th>Receipt</th><th>Student</th><th>Course</th><th class="text-right">KES</th><th>Date</th></tr></thead>
+              <tbody>
+                {% for p in recent_payments %}
+                <tr>
+                  <td>{{ p.receipt_no }}</td>
+                  <td>{{ p.student.admin.get_full_name }}</td>
+                  <td>{{ p.course.name|default:"—" }}</td>
+                  <td class="text-right">{{ p.amount|intcomma }}</td>
+                  <td>{{ p.paid_at|date:"Y-m-d" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No payments recorded yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

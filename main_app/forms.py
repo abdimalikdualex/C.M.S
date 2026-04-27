@@ -654,6 +654,49 @@ class AdmissionOfficerEditForm(forms.Form):
         return em
 
 
+class DirectorCreateForm(forms.Form):
+    """
+    Superadmin-only form to create a Manager / Director account.
+    Mirrors AdmissionOfficerCreateForm but produces CustomUser.user_type='4'.
+    """
+
+    full_name = forms.CharField(required=True, label="Full name")
+    phone_number = forms.CharField(required=True, label="Phone number")
+    email = forms.EmailField(required=True, label="Email")
+    password = forms.CharField(widget=forms.PasswordInput, required=True)
+    is_active = forms.BooleanField(required=False, initial=True, label="Active account")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for f in self.visible_fields():
+            f.field.widget.attrs.setdefault("class", "form-control")
+
+    def clean_phone_number(self):
+        phone = (self.cleaned_data.get("phone_number") or "").strip()
+        phone = re.sub(r"\s+", "", phone)
+        if not phone:
+            raise forms.ValidationError("Phone number is required")
+        if phone.startswith("0") and len(phone) >= 10:
+            phone = "254" + phone[1:]
+        if CustomUser.objects.filter(phone_number=phone).exists():
+            raise forms.ValidationError("This phone number is already registered")
+        return phone
+
+    def clean_email(self):
+        em = (self.cleaned_data.get("email") or "").strip().lower()
+        if not em:
+            raise forms.ValidationError("Email is required for a director account.")
+        if CustomUser.objects.filter(email=em).exists():
+            raise forms.ValidationError("This email is already registered")
+        return em
+
+    def clean_full_name(self):
+        n = (self.cleaned_data.get("full_name") or "").strip()
+        if not n:
+            raise forms.ValidationError("Full name is required")
+        return n
+
+
 class AssessmentForm(FormSettings):
     """Instructor creates/edits an assessment for their assigned course."""
 

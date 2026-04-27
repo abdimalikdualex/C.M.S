@@ -234,6 +234,15 @@
                                 <p>Admission Officers</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            {% url 'manage_directors' as manage_directors %}
+                            {% url 'add_director' as add_director %}
+                            <a href="{{ manage_directors }}"
+                                class="nav-link {% if manage_directors == request.path or add_director == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Directors</p>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <li class="nav-item">
@@ -659,6 +668,87 @@
                                     </p>
                                 </a>
                             </li>
+
+                            {% elif request.user.user_type == '4' %}
+                            <!-- Brand Logo -->
+                            <a href="{% url 'director_dashboard' %}" class="brand-link">
+                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
+                                    class="brand-image img-circle elevation-3" style="opacity: .8">
+                                <span class="brand-text font-weight-light">Director Panel</span>
+                            </a>
+
+                            <!-- Sidebar -->
+                            <div class="sidebar">
+                                <!-- Sidebar user panel (optional) -->
+                                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                                    <div class="image">
+                                        <img src="{{ request.user.profile_pic}}" class="img-circle elevation-2" alt="User Image">
+                                    </div>
+                                    <div class="info">
+                                        <a href="#" class="d-block">
+                                            {% if request.user.full_name %}
+                                                {{ request.user.full_name }}
+                                            {% elif request.user.first_name or request.user.last_name %}
+                                                {{ request.user.first_name }} {{ request.user.last_name }}
+                                            {% else %}
+                                                Director
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Sidebar Menu -->
+                                <nav class="mt-2">
+                                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                                        <li class="nav-item">
+                                            {% url 'director_dashboard' as director_dashboard %}
+                                            <a href="{{ director_dashboard }}" class="nav-link {% if director_dashboard == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-home"></i>
+                                                <p>Dashboard</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_students' as director_students %}
+                                            <a href="{{ director_students }}" class="nav-link {% if director_students == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-user-graduate"></i>
+                                                <p>Students</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_courses' as director_courses %}
+                                            <a href="{{ director_courses }}" class="nav-link {% if director_courses == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-th-list"></i>
+                                                <p>Courses</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_sessions' as director_sessions %}
+                                            <a href="{{ director_sessions }}" class="nav-link {% if director_sessions == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-calendar-check"></i>
+                                                <p>Sessions</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_finance' as director_finance %}
+                                            <a href="{{ director_finance }}" class="nav-link {% if director_finance == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-coins"></i>
+                                                <p>Finance</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_reports' as director_reports %}
+                                            <a href="{{ director_reports }}" class="nav-link {% if director_reports == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-file-csv"></i>
+                                                <p>Reports</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'director_staff' as director_staff %}
+                                            <a href="{{ director_staff }}" class="nav-link {% if director_staff == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-users"></i>
+                                                <p>Staff</p>
+                                            </a>
+                                        </li>
 
                             {% else %}
                             <!-- Brand Logo -->

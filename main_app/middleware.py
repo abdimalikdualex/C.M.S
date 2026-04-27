@@ -6,6 +6,7 @@ from .roles import (
     ADMISSION_DESK_STAFF_URL_NAMES,
     ADMISSION_OFFICER,
     HOD_ALLOWED_FOR_ADMISSION_DESK,
+    HOD_ALLOWED_FOR_DIRECTOR,
     INSTRUCTOR,
     INSTRUCTOR_ONLY_STAFF_URLS,
     get_dashboard_role,
@@ -36,6 +37,25 @@ class LoginCheckMiddleWare(MiddlewareMixin):
         if ut == "1":
             if modulename == "main_app.student_views":
                 return redirect(reverse("superadmin_dashboard"))
+            return None
+
+        if ut == "4":
+            # Director: read-only oversight. Allow director_views freely; allow
+            # a tiny whitelist of HOD URLs (notably set_active_session); push
+            # everything else back to the director dashboard.
+            if modulename == "main_app.director_views":
+                return None
+            if modulename == "main_app.hod_views" and url_name in HOD_ALLOWED_FOR_DIRECTOR:
+                return None
+            if modulename in (
+                "main_app.hod_views",
+                "main_app.staff_views",
+                "main_app.student_views",
+                "main_app.billing_views",
+                "main_app.assessment_views",
+                "main_app.EditResultView",
+            ):
+                return redirect(reverse("director_dashboard"))
             return None
 
         if ut == "3":

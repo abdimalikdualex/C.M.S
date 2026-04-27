@@ -1,7 +1,8 @@
 """
 Role-based dashboards (Kenyan short-course college MVP).
 
-CustomUser.user_type: "1" = HOD / Super Admin, "2" = Staff, "3" = Student
+CustomUser.user_type: "1" = HOD / Super Admin, "2" = Staff, "3" = Student,
+                     "4" = Director (Manager)
 Staff.role: instructor | admission | finance
 
 Admission + finance share one operations desk (register, enroll, payments, receipts).
@@ -12,6 +13,13 @@ forms enforce field exposure, and decorators below enforce per-view access):
   Superadmin (HOD)
     - Full access to all admin pages, course/session/staff/student management,
       finance reports, audit log, and dashboards. Cannot access student-only pages.
+
+  Director (Manager)
+    - Read-only oversight: KPIs, students, courses, sessions, staff,
+      finance summary, reports (CSV/Excel exports).
+    - One write capability: activate / close a Session.
+    - Cannot: register students, record payments, take attendance, edit any
+      operational data. "See everything, change very little."
 
   Admission/Finance desk (one combined desk)
     - Can: register students (StudentForm with course+session+agreed fee),
@@ -40,12 +48,22 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 SUPERADMIN = "superadmin"
+DIRECTOR = "director"
 ADMISSION_OFFICER = "admission_officer"
 INSTRUCTOR = "instructor"
 STUDENT = "student"
 
 ROLE_PERMISSIONS = {
     SUPERADMIN: ("all_access",),
+    DIRECTOR: (
+        "view_students",
+        "view_courses",
+        "view_sessions",
+        "view_staff",
+        "view_finance",
+        "view_reports",
+        "session_set_active",
+    ),
     ADMISSION_OFFICER: (
         "students",
         "enrollment",
@@ -56,6 +74,16 @@ ROLE_PERMISSIONS = {
     INSTRUCTOR: ("attendance", "assessments", "view_course_students"),
     STUDENT: ("view_own_data",),
 }
+
+# Director is allowed to invoke a small whitelist of HOD-area URLs (so we can
+# reuse e.g. set_active_session without duplicating the view). All listed names
+# must be read-only or session-control only.
+HOD_ALLOWED_FOR_DIRECTOR = frozenset(
+    {
+        "set_active_session",
+        "manage_session",
+    }
+)
 
 # HOD course tools admission/finance may use without full HOD access.
 HOD_ALLOWED_FOR_ADMISSION_DESK = frozenset(
@@ -133,6 +161,8 @@ def get_dashboard_role(user):
         return SUPERADMIN
     if ut == "3":
         return STUDENT
+    if ut == "4":
+        return DIRECTOR
     if ut == "2":
         staff = get_staff_profile(user)
         if staff is None:
@@ -148,6 +178,8 @@ def get_post_login_redirect_url(user):
     role = get_dashboard_role(user)
     if role == SUPERADMIN:
         return reverse("superadmin_dashboard")
+    if role == DIRECTOR:
+        return reverse("director_dashboard")
     if role == ADMISSION_OFFICER:
         return reverse("admission_dashboard")
     if role == INSTRUCTOR:
@@ -174,6 +206,8 @@ def _denied_redirect(request, friendly_message):
     role = get_dashboard_role(request.user)
     if role == SUPERADMIN:
         return redirect(reverse("superadmin_dashboard"))
+    if role == DIRECTOR:
+        return redirect(reverse("director_dashboard"))
     if role == ADMISSION_OFFICER:
         return redirect(reverse("admission_dashboard"))
     if role == INSTRUCTOR:
@@ -215,6 +249,26 @@ def require_instructor(view_func):
             return view_func(request, *args, **kwargs)
         return _denied_redirect(
             request, "This action is restricted to instructors."
+        )
+
+    return _wrapped
+
+
+def require_director(view_func):
+    """
+    Allow superadmins and directors only. Used by every read-only oversight
+    page in director_views and by the session-activation toggle.
+    """
+
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect(reverse("login_page"))
+        role = get_dashboard_role(request.user)
+        if role in (SUPERADMIN, DIRECTOR):
+            return view_func(request, *args, **kwargs)
+        return _denied_redirect(
+            request, "This page is restricted to the Manager / Director."
         )
 
     return _wrapped

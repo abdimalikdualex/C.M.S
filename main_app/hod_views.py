@@ -1121,3 +1121,81 @@ def soft_delete_admission_officer(request, staff_id):
     staff.admin.save()
     messages.success(request, "Admission officer removed from active list.")
     return redirect(reverse("manage_admission_officers"))
+
+
+# ---------------------------------------------------------------------------
+# Director (Manager) account management — superadmin only
+# ---------------------------------------------------------------------------
+def manage_directors(request):
+    if not _hod_superadmin_required(request):
+        return redirect(reverse("login_page"))
+    q = (request.GET.get("q") or "").strip()
+    status = request.GET.get("status", "all")
+    qs = Director.objects.select_related("admin")
+    if q:
+        qs = qs.filter(
+            Q(admin__full_name__icontains=q)
+            | Q(admin__first_name__icontains=q)
+            | Q(admin__last_name__icontains=q)
+            | Q(admin__email__icontains=q)
+            | Q(admin__phone_number__icontains=q)
+        )
+    if status == "active":
+        qs = qs.filter(admin__is_active=True)
+    elif status == "inactive":
+        qs = qs.filter(admin__is_active=False)
+    qs = qs.order_by("admin__full_name", "admin__email")
+    context = {
+        "page_title": "Directors",
+        "directors": qs,
+        "search_q": q,
+        "status": status,
+    }
+    return render(request, "hod_template/manage_directors.html", context)
+
+
+def add_director(request):
+    if not _hod_superadmin_required(request):
+        return redirect(reverse("login_page"))
+    form = DirectorCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        full_name = form.cleaned_data["full_name"]
+        phone = form.cleaned_data["phone_number"]
+        email = form.cleaned_data["email"]
+        password = form.cleaned_data["password"]
+        is_active = form.cleaned_data.get("is_active", True)
+        try:
+            user = CustomUser(
+                email=email,
+                user_type="4",
+                full_name=full_name,
+                first_name="",
+                last_name="",
+                phone_number=phone,
+                gender="M",
+                address="-",
+            )
+            user.set_password(password)
+            user.is_active = bool(is_active)
+            cf = _default_profile_image_file()
+            user.profile_pic.save(cf.name, cf, save=False)
+            user.save()
+            messages.success(request, "Director account created.")
+            return redirect(reverse("manage_directors"))
+        except Exception as e:
+            messages.error(request, "Could not create account: " + str(e))
+    context = {"page_title": "Add Director", "form": form}
+    return render(request, "hod_template/add_director_template.html", context)
+
+
+def toggle_director_active(request, director_id):
+    if not _hod_superadmin_required(request):
+        return redirect(reverse("login_page"))
+    director = get_object_or_404(Director, id=director_id)
+    u = director.admin
+    u.is_active = not u.is_active
+    u.save()
+    messages.success(
+        request, "Account is now " + ("active" if u.is_active else "inactive") + "."
+    )
+    return redirect(reverse("manage_directors"))

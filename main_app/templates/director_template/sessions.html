@@ -1,0 +1,66 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Sessions ({{ sessions|length }})</h3>
+        <p class="text-muted small mb-0 mt-1">
+          Mark exactly one session as <strong>active</strong>. New registrations
+          default to the active session.
+        </p>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Intake</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Status</th>
+              <th class="text-right">Students</th>
+              <th class="text-right">Enrollments</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sessions %}
+            <tr>
+              <td>{{ s.intake_label }}</td>
+              <td>{{ s.start_year|date:"Y-m-d" }}</td>
+              <td>{{ s.end_year|date:"Y-m-d" }}</td>
+              <td>
+                {% if s.is_active %}
+                  <span class="badge badge-success">Active</span>
+                {% elif s.is_within_dates %}
+                  <span class="badge badge-info">In date range</span>
+                {% else %}
+                  <span class="badge badge-secondary">Inactive</span>
+                {% endif %}
+              </td>
+              <td class="text-right">{{ s.student_count }}</td>
+              <td class="text-right">{{ s.enrollment_count }}</td>
+              <td class="text-right">
+                {% if not s.is_active %}
+                  <a href="{% url 'set_active_session' s.id %}"
+                     class="btn btn-sm btn-outline-success"
+                     onclick="return confirm('Mark {{ s.intake_label }} as the active session? Any other active session will be deactivated.');">
+                    Set Active
+                  </a>
+                {% else %}
+                  <span class="text-muted small">Current</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-3">No sessions defined yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

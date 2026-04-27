@@ -1,0 +1,40 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Staff ({{ staff_list|length }})</h3>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Role</th>
+              <th>Course assigned</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for st in staff_list %}
+            <tr>
+              <td>{{ st.admin.get_full_name }}</td>
+              <td>{{ st.admin.email }}</td>
+              <td>{{ st.admin.phone_number|default:"—" }}</td>
+              <td>{{ st.get_role_display }}</td>
+              <td>{{ st.course.name|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">No staff members.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

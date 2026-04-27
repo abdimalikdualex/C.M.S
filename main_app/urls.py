@@ -17,7 +17,15 @@ from django.urls import path
 
 from main_app.EditResultView import EditResultView
 
-from . import assessment_views, billing_views, hod_views, staff_views, student_views, views
+from . import (
+    assessment_views,
+    billing_views,
+    director_views,
+    hod_views,
+    staff_views,
+    student_views,
+    views,
+)
 
 urlpatterns = [
     # Canonical dashboard entry URLs (same views as legacy routes; used for login + ACL messaging)
@@ -40,6 +48,11 @@ urlpatterns = [
         "dashboard/student/",
         student_views.student_home,
         name="student_dashboard",
+    ),
+    path(
+        "dashboard/director/",
+        director_views.director_dashboard,
+        name="director_dashboard",
     ),
     path("", views.login_page, name='login_page'),
     path("get_attendance", views.get_attendance, name='get_attendance'),
@@ -72,6 +85,21 @@ urlpatterns = [
         "admin/admission-officers/<int:staff_id>/delete/",
         hod_views.soft_delete_admission_officer,
         name="soft_delete_admission_officer",
+    ),
+    path(
+        "admin/directors/",
+        hod_views.manage_directors,
+        name="manage_directors",
+    ),
+    path(
+        "admin/directors/add/",
+        hod_views.add_director,
+        name="add_director",
+    ),
+    path(
+        "admin/directors/<int:director_id>/toggle/",
+        hod_views.toggle_director_active,
+        name="toggle_director_active",
     ),
     path("staff/add", hod_views.add_staff, name='add_staff'),
     path("course/add", hod_views.add_course, name='add_course'),
@@ -260,6 +288,29 @@ urlpatterns = [
         "student/assessments/<int:pk>/",
         student_views.student_assessment_detail,
         name="student_assessment_detail",
+    ),
+
+    # Director / Manager — read-only oversight + CSV exports
+    path("director/students/", director_views.director_students, name="director_students"),
+    path("director/courses/", director_views.director_courses, name="director_courses"),
+    path("director/sessions/", director_views.director_sessions, name="director_sessions"),
+    path("director/staff/", director_views.director_staff, name="director_staff"),
+    path("director/finance/", director_views.director_finance, name="director_finance"),
+    path("director/reports/", director_views.director_reports, name="director_reports"),
+    path(
+        "director/reports/students.csv",
+        director_views.director_report_students_csv,
+        name="director_report_students_csv",
+    ),
+    path(
+        "director/reports/finance.csv",
+        director_views.director_report_finance_csv,
+        name="director_report_finance_csv",
+    ),
+    path(
+        "director/reports/attendance.csv",
+        director_views.director_report_attendance_csv,
+        name="director_report_attendance_csv",
     ),
 
     # Fees — receipts & statements (billing_views)

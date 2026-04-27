@@ -1,0 +1,138 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-3">
+        <div class="info-box">
+          <span class="info-box-icon bg-success"><i class="fas fa-coins"></i></span>
+          <div class="info-box-content">
+            <span class="info-box-text">Total Revenue</span>
+            <span class="info-box-number">KES {{ total_revenue|intcomma }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="info-box">
+          <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-circle"></i></span>
+          <div class="info-box-content">
+            <span class="info-box-text">Outstanding</span>
+            <span class="info-box-number">KES {{ outstanding|intcomma }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="info-box">
+          <span class="info-box-icon bg-info"><i class="fas fa-calendar-check"></i></span>
+          <div class="info-box-content">
+            <span class="info-box-text">Current session</span>
+            <span class="info-box-number">{% if current_session %}{{ current_session.intake_label }}{% else %}—{% endif %}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="info-box">
+          <span class="info-box-icon bg-primary"><i class="fas fa-coins"></i></span>
+          <div class="info-box-content">
+            <span class="info-box-text">Revenue (current session)</span>
+            <span class="info-box-number">KES {{ revenue_current_session|intcomma }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">By course</h3></div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-striped mb-0">
+              <thead><tr>
+                <th>Course</th>
+                <th class="text-right">Enrolled</th>
+                <th class="text-right">Agreed (KES)</th>
+                <th class="text-right">Collected (KES)</th>
+                <th class="text-right">Outstanding (KES)</th>
+              </tr></thead>
+              <tbody>
+                {% for c in courses %}
+                <tr>
+                  <td>{{ c.name }}</td>
+                  <td class="text-right">{{ c.enrolled }}</td>
+                  <td class="text-right">{{ c.agreed|default:0|intcomma }}</td>
+                  <td class="text-right">{{ c.collected|default:0|intcomma }}</td>
+                  <td class="text-right">{% if c.outstanding and c.outstanding > 0 %}{{ c.outstanding|intcomma }}{% else %}0{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No data.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">By session</h3></div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-striped mb-0">
+              <thead><tr>
+                <th>Session</th>
+                <th>Status</th>
+                <th class="text-right">Agreed (KES)</th>
+                <th class="text-right">Collected (KES)</th>
+                <th class="text-right">Outstanding (KES)</th>
+              </tr></thead>
+              <tbody>
+                {% for s in sessions %}
+                <tr>
+                  <td>{{ s.intake_label }}</td>
+                  <td>{% if s.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-secondary">Closed</span>{% endif %}</td>
+                  <td class="text-right">{{ s.agreed|default:0|intcomma }}</td>
+                  <td class="text-right">{{ s.collected|default:0|intcomma }}</td>
+                  <td class="text-right">{% if s.outstanding and s.outstanding > 0 %}{{ s.outstanding|intcomma }}{% else %}0{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No sessions.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Recent payments</h3>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-striped mb-0">
+          <thead><tr>
+            <th>Receipt</th><th>Date</th><th>Student</th><th>Course</th><th>Session</th>
+            <th>Mode</th><th class="text-right">KES</th>
+          </tr></thead>
+          <tbody>
+            {% for p in recent_payments %}
+            <tr>
+              <td>{{ p.receipt_no }}</td>
+              <td>{{ p.paid_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ p.student.admin.get_full_name }}</td>
+              <td>{{ p.course.name|default:"—" }}</td>
+              <td>{% if p.enrollment and p.enrollment.session %}{{ p.enrollment.session.intake_label }}{% else %}—{% endif %}</td>
+              <td>{{ p.get_mode_display }}</td>
+              <td class="text-right">{{ p.amount|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-3">No payments yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}
