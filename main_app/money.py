@@ -49,6 +49,11 @@ def max_zero_kes(value) -> int:
     return z if z > 0 else 0
 
 
+def format_kes_amount(value) -> str:
+    """Whole KES with thousands separators for SMS and plain-text labels."""
+    return f"{quantize_kes(value):,}"
+
+
 def format_money(value) -> int:
     """Whole-shilling KES as int (SMS, labels, APIs)."""
     return quantize_kes(value)

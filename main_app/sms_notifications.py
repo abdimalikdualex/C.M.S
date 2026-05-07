@@ -10,7 +10,7 @@ from typing import Optional
 from django.conf import settings
 
 from .models import SmsLog
-from .money import format_money
+from .money import format_kes_amount
 from .sms_placeholder import send_sms
 
 
@@ -66,8 +66,8 @@ def notify_payment_recorded(payment) -> None:
         bal = 0
     course_name = st.course.name if st.course_id else "—"
     msg = (
-        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE DIGITAL HUB')}: Payment KES {format_money(payment.amount)} received. "
-        f"Receipt {payment.receipt_no}. Course: {course_name}. Balance KES {format_money(bal)}."
+        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE DIGITAL HUB')}: Payment KES {format_kes_amount(payment.amount)} received. "
+        f"Receipt {payment.receipt_no}. Course: {course_name}. Balance KES {format_kes_amount(bal)}."
     )
     log_and_send_sms(
         to_phone=phone,
