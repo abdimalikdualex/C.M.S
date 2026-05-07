@@ -18,8 +18,8 @@ def ensure_enrollment(student, course, start_date=None, session=None, total_fee_
     that has already been written on disk.
 
     - On creation: total_fee = total_fee_override (if provided) else
-      course.total_fee_for_student(). Session = explicit session arg, else the
-      student's session, else the active session.
+      course.total_fee_for_student() (the course full_fee; no duration or plan math).
+      Session = explicit session arg, else the student's session, else the active session.
     - On re-save (already exists): only sync the session FK if it is missing.
       Never touch total_fee — that value belongs to the finance team.
     """

@@ -2,7 +2,7 @@ from django import forms
 from django.forms.widgets import DateInput, TextInput
 
 from .models import *
-from .money import format_money, quantize_kes
+from .money import WHOLE_KES_MSG
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 import re
@@ -136,7 +136,7 @@ class StudentForm(CustomUserForm):
         required=False,
         min_value=0,
         label="Initial payment amount",
-        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+        error_messages={"invalid": WHOLE_KES_MSG},
     )
     pay_mode = forms.ChoiceField(required=False, choices=Payment.MODE, label="Payment mode")
     pay_reference = forms.CharField(required=False, label="Payment reference (M-Pesa code)")
@@ -152,7 +152,7 @@ class StudentForm(CustomUserForm):
         min_value=0,
         label="Agreed total fee (KES)",
         help_text="Defaults to the course fee. Override only if a different fee was agreed (scholarship, sibling discount, etc.).",
-        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+        error_messages={"invalid": WHOLE_KES_MSG},
     )
 
     def __init__(self, *args, **kwargs):
@@ -189,7 +189,7 @@ class StudentForm(CustomUserForm):
             for c in course_field.queryset.order_by("name"):
                 total_fee = c.total_fee_for_student()
                 level_suffix = f" ({c.get_level_display()})" if getattr(c, "level", "") else ""
-                choices.append((c.pk, f"{c.name}{level_suffix} — KES {format_money(total_fee)}"))
+                choices.append((c.pk, f"{c.name}{level_suffix} — KES {int(total_fee or 0):,}"))
             course_field.choices = choices
 
     def clean_phone_number(self):
@@ -284,7 +284,7 @@ class CourseForm(FormSettings):
         super(CourseForm, self).__init__(*args, **kwargs)
         for key in ("monthly_fee", "full_fee"):
             if key in self.fields:
-                self.fields[key].error_messages["invalid"] = "Only whole numbers are allowed. Decimals are not permitted."
+                self.fields[key].error_messages["invalid"] = WHOLE_KES_MSG
 
     class Meta:
         fields = [
@@ -306,7 +306,7 @@ class PaymentForm(FormSettings):
     def __init__(self, *args, **kwargs):
         super(PaymentForm, self).__init__(*args, **kwargs)
         if "amount" in self.fields:
-            self.fields["amount"].error_messages["invalid"] = "Only whole numbers are allowed. Decimals are not permitted."
+            self.fields["amount"].error_messages["invalid"] = WHOLE_KES_MSG
 
     class Meta:
         model = Payment
@@ -331,7 +331,7 @@ class RecordPaymentForm(forms.Form):
         required=True,
         min_value=0,
         label="Amount (KES)",
-        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+        error_messages={"invalid": WHOLE_KES_MSG},
     )
     mode = forms.ChoiceField(choices=Payment.MODE, label="Payment mode")
     reference = forms.CharField(
@@ -395,13 +395,13 @@ class EnrollExistingStudentForm(forms.Form):
         min_value=0,
         label="Agreed total fee (KES)",
         help_text="Defaults to the course fee. Override only if a different fee was agreed.",
-        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+        error_messages={"invalid": WHOLE_KES_MSG},
     )
     pay_amount = forms.IntegerField(
         required=False,
         min_value=0,
         label="Initial payment",
-        error_messages={"invalid": "Only whole numbers are allowed. Decimals are not permitted."},
+        error_messages={"invalid": WHOLE_KES_MSG},
     )
     pay_mode = forms.ChoiceField(required=False, choices=Payment.MODE, label="Payment mode")
     pay_reference = forms.CharField(required=False, label="Payment reference")

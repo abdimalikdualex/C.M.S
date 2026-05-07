@@ -195,14 +195,11 @@ class Course(models.Model):
 
     def total_fee_for_student(self):
         """
-        Total expected fee for a student on this course.
-        For monthly plan: duration in months * monthly_fee (or weeks->ceil(weeks/4)).
+        Course fee for agreements and defaults: exactly the superadmin-entered full_fee.
+
+        No multiplication by duration, payment plan, or monthly_fee — those fields are
+        informational only; the stored amount is authoritative.
         """
-        if self.payment_plan == "monthly":
-            if self.duration_value <= 0:
-                return quantize_kes(self.monthly_fee)
-            months = self.duration_value if self.duration_unit == "months" else max(1, (self.duration_value + 3) // 4)
-            return quantize_kes(months * quantize_kes(self.monthly_fee))
         return quantize_kes(self.full_fee)
 
     def save(self, *args, **kwargs):
@@ -234,7 +231,8 @@ class Student(models.Model):
         have been manually overridden at registration (scholarship, sibling
         discount, agreed price), so we never recompute from the course default.
 
-        Fallback (no enrollments yet): use the student's primary course default.
+        Fallback (no enrollments yet): use the student's primary course `full_fee`
+        via `Course.total_fee_for_student()` (no derived totals).
         """
         enrollments = self.enrollments.all()
         if enrollments.exists():

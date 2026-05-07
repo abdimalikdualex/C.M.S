@@ -1,6 +1,6 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
-{% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <style>
@@ -26,13 +26,13 @@
             </div>
             <div class="col-lg-4 col-6">
                 <div class="small-box bg-success">
-                    <div class="inner"><h3>{{ total_collected|floatformat:0|intcomma }}</h3><p>Fees collected (KES)</p></div>
+                    <div class="inner"><h3>{{ total_collected|kes_intcomma }}</h3><p>Fees collected (KES)</p></div>
                     <div class="icon"><i class="fas fa-coins"></i></div>
                 </div>
             </div>
             <div class="col-lg-4 col-6">
                 <div class="small-box bg-warning">
-                    <div class="inner"><h3>{{ total_pending|floatformat:0|intcomma }}</h3><p>Outstanding (KES)</p></div>
+                    <div class="inner"><h3>{{ total_pending|kes_intcomma }}</h3><p>Outstanding (KES)</p></div>
                     <div class="icon"><i class="fas fa-hourglass-half"></i></div>
                 </div>
             </div>
@@ -68,7 +68,7 @@
                                 <tr>
                                     <td>{{ p.paid_at|date:"Y-m-d H:i" }}</td>
                                     <td>{{ p.student.admin.get_full_name }}</td>
-                                    <td>{{ p.amount|floatformat:0|intcomma }}</td>
+                                    <td>{{ p.amount|kes_intcomma }}</td>
                                     <td>{{ p.get_mode_display }}</td>
                                     <td><a href="{% url 'payment_receipt' p.id %}">{{ p.receipt_no }}</a></td>
                                 </tr>

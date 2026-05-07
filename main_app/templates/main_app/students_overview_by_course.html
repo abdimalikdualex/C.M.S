@@ -1,6 +1,7 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
 {% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <style>
@@ -51,8 +52,8 @@
         </h3>
         <span class="float-right text-muted">
           {{ course_bucket.student_count }} student{{ course_bucket.student_count|pluralize }} ·
-          Paid <strong>{{ course_bucket.paid_total|intcomma }}</strong> ·
-          Outstanding <strong>{{ course_bucket.outstanding_total|intcomma }}</strong> KES
+          Paid <strong>{{ course_bucket.paid_total|kes_intcomma }}</strong> ·
+          Outstanding <strong>{{ course_bucket.outstanding_total|kes_intcomma }}</strong> KES
         </span>
       </div>
       <div class="card-body p-0">
@@ -64,7 +65,7 @@
             </strong>
             <small class="text-muted">
               {{ sess_bucket.student_count }} student{{ sess_bucket.student_count|pluralize }} ·
-              Paid {{ sess_bucket.paid_total|intcomma }} · Outstanding {{ sess_bucket.outstanding_total|intcomma }} KES
+              Paid {{ sess_bucket.paid_total|kes_intcomma }} · Outstanding {{ sess_bucket.outstanding_total|kes_intcomma }} KES
             </small>
           </div>
           <div class="table-responsive">
@@ -88,9 +89,9 @@
                   <td>{{ e.student.admin.phone_number|default:"—" }}</td>
                   <td>{{ e.start_date|date:"Y-m-d" }}</td>
                   <td>{{ e.get_status_display }}</td>
-                  <td>{{ e.total_fee|intcomma }}</td>
-                  <td>{{ e.paid_total|intcomma }}</td>
-                  <td>{{ e.balance_remaining|intcomma }}</td>
+                  <td>{{ e.total_fee|kes_intcomma }}</td>
+                  <td>{{ e.paid_total|kes_intcomma }}</td>
+                  <td>{{ e.balance_remaining|kes_intcomma }}</td>
                   <td>
                     <a href="{% url 'student_fee_statement' e.student.id %}" class="btn btn-outline-secondary btn-sm">Statement</a>
                     {% if request.user.user_type == '1' %}

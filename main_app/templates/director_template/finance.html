@@ -1,6 +1,7 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
 {% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <section class="content">
@@ -11,7 +12,7 @@
           <span class="info-box-icon bg-success"><i class="fas fa-coins"></i></span>
           <div class="info-box-content">
             <span class="info-box-text">Total Revenue</span>
-            <span class="info-box-number">KES {{ total_revenue|intcomma }}</span>
+            <span class="info-box-number">KES {{ total_revenue|kes_intcomma }}</span>
           </div>
         </div>
       </div>
@@ -20,7 +21,7 @@
           <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-circle"></i></span>
           <div class="info-box-content">
             <span class="info-box-text">Outstanding</span>
-            <span class="info-box-number">KES {{ outstanding|intcomma }}</span>
+            <span class="info-box-number">KES {{ outstanding|kes_intcomma }}</span>
           </div>
         </div>
       </div>
@@ -38,7 +39,7 @@
           <span class="info-box-icon bg-primary"><i class="fas fa-coins"></i></span>
           <div class="info-box-content">
             <span class="info-box-text">Revenue (current session)</span>
-            <span class="info-box-number">KES {{ revenue_current_session|intcomma }}</span>
+            <span class="info-box-number">KES {{ revenue_current_session|kes_intcomma }}</span>
           </div>
         </div>
       </div>
@@ -62,9 +63,9 @@
                 <tr>
                   <td>{{ c.name }}</td>
                   <td class="text-right">{{ c.enrolled }}</td>
-                  <td class="text-right">{{ c.agreed|default:0|intcomma }}</td>
-                  <td class="text-right">{{ c.collected|default:0|intcomma }}</td>
-                  <td class="text-right">{% if c.outstanding and c.outstanding > 0 %}{{ c.outstanding|intcomma }}{% else %}0{% endif %}</td>
+                  <td class="text-right">{{ c.agreed|default:0|kes_intcomma }}</td>
+                  <td class="text-right">{{ c.collected|default:0|kes_intcomma }}</td>
+                  <td class="text-right">{% if c.outstanding and c.outstanding > 0 %}{{ c.outstanding|kes_intcomma }}{% else %}0{% endif %}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="text-center text-muted py-3">No data.</td></tr>
@@ -91,9 +92,9 @@
                 <tr>
                   <td>{{ s.intake_label }}</td>
                   <td>{% if s.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-secondary">Closed</span>{% endif %}</td>
-                  <td class="text-right">{{ s.agreed|default:0|intcomma }}</td>
-                  <td class="text-right">{{ s.collected|default:0|intcomma }}</td>
-                  <td class="text-right">{% if s.outstanding and s.outstanding > 0 %}{{ s.outstanding|intcomma }}{% else %}0{% endif %}</td>
+                  <td class="text-right">{{ s.agreed|default:0|kes_intcomma }}</td>
+                  <td class="text-right">{{ s.collected|default:0|kes_intcomma }}</td>
+                  <td class="text-right">{% if s.outstanding and s.outstanding > 0 %}{{ s.outstanding|kes_intcomma }}{% else %}0{% endif %}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="text-center text-muted py-3">No sessions.</td></tr>
@@ -124,7 +125,7 @@
               <td>{{ p.course.name|default:"—" }}</td>
               <td>{% if p.enrollment and p.enrollment.session %}{{ p.enrollment.session.intake_label }}{% else %}—{% endif %}</td>
               <td>{{ p.get_mode_display }}</td>
-              <td class="text-right">{{ p.amount|intcomma }}</td>
+              <td class="text-right">{{ p.amount|kes_intcomma }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="7" class="text-center text-muted py-3">No payments yet.</td></tr>

@@ -1,6 +1,6 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
-{% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{page_title}}{% endblock page_title %}
 {% block content %}
 <section class="content">
@@ -72,7 +72,7 @@
             <div class="col-lg-4 col-6">
                 <div class="small-box bg-secondary">
                     <div class="inner">
-                        <h3>{{ fee_paid|floatformat:0|intcomma }}</h3>
+                        <h3>{{ fee_paid|kes_intcomma }}</h3>
                         <p>Fees paid (KES)</p>
                     </div>
                     <div class="icon"><i class="nav-icon fas fa-money-bill-wave"></i></div>
@@ -82,7 +82,7 @@
             <div class="col-lg-4 col-6">
                 <div class="small-box bg-warning">
                     <div class="inner">
-                        <h3>{{ fee_balance|floatformat:0|intcomma }}</h3>
+                        <h3>{{ fee_balance|kes_intcomma }}</h3>
                         <p>Balance due (KES)</p>
                     </div>
                     <div class="icon"><i class="nav-icon fas fa-balance-scale"></i></div>

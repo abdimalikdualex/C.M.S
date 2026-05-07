@@ -1,6 +1,6 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
-{% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 
 {% block content %}
@@ -47,7 +47,7 @@
                                     <td>{{ s.admin.get_full_name }}</td>
                                     <td>{{ s.student_id }}</td>
                                     <td>{% if s.course %}{{ s.course.name }}{% else %}—{% endif %}</td>
-                                    <td>{{ s.balance|floatformat:0|intcomma }}</td>
+                                    <td>{{ s.balance|kes_intcomma }}</td>
                                     <td><a href="{% url 'student_fee_statement' s.id %}">View</a></td>
                                     <td><a href="{% url 'admission_enroll_existing_student' %}?lookup={{ s.student_id }}">Enroll</a></td>
                                 </tr>

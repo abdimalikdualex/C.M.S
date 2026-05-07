@@ -18,6 +18,7 @@ from django.views.generic import UpdateView
 
 from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
+from .money import WHOLE_KES_MSG, parse_post_whole_kes
 from .models import *
 from .sms_notifications import notify_admission_confirmed
 
@@ -551,11 +552,9 @@ def edit_enrollment_fee(request, enrollment_id):
         return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
     raw = (request.POST.get("total_fee") or "").strip()
     try:
-        new_fee = int(raw)
-        if new_fee < 0:
-            raise ValueError
-    except (TypeError, ValueError):
-        messages.error(request, "Total fee must be a whole non-negative number.")
+        new_fee = parse_post_whole_kes(raw)
+    except ValueError:
+        messages.error(request, WHOLE_KES_MSG)
         return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
     paid = int(enrollment.amount_paid or 0)
     if new_fee < paid:

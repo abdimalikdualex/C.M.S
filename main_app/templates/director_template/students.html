@@ -1,6 +1,7 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
 {% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <section class="content">
@@ -52,8 +53,8 @@
         <h3 class="card-title">
           {{ course_bucket.course.name|default:"(no course)" }}
           <span class="badge badge-info ml-2">{{ course_bucket.student_count }} students</span>
-          <span class="badge badge-success ml-1">Paid KES {{ course_bucket.paid_total|intcomma }}</span>
-          <span class="badge badge-warning ml-1">Outstanding KES {{ course_bucket.outstanding_total|intcomma }}</span>
+          <span class="badge badge-success ml-1">Paid KES {{ course_bucket.paid_total|kes_intcomma }}</span>
+          <span class="badge badge-warning ml-1">Outstanding KES {{ course_bucket.outstanding_total|kes_intcomma }}</span>
         </h3>
       </div>
       <div class="card-body p-0">
@@ -62,8 +63,8 @@
           <strong>{{ sess_bucket.session.intake_label|default:"(no session)" }}</strong>
           <span class="text-muted small ml-2">
             {{ sess_bucket.student_count }} students ·
-            paid KES {{ sess_bucket.paid_total|intcomma }} ·
-            outstanding KES {{ sess_bucket.outstanding_total|intcomma }}
+            paid KES {{ sess_bucket.paid_total|kes_intcomma }} ·
+            outstanding KES {{ sess_bucket.outstanding_total|kes_intcomma }}
           </span>
         </div>
         <table class="table table-sm table-striped mb-0">
@@ -81,9 +82,9 @@
               <td>{{ e.student.student_id }}</td>
               <td>{{ e.student.admin.get_full_name }}</td>
               <td>{{ e.student.admin.email }}</td>
-              <td class="text-right">{{ e.total_fee|intcomma }}</td>
-              <td class="text-right">{{ e.paid_total|intcomma }}</td>
-              <td class="text-right">{{ e.balance_remaining|intcomma }}</td>
+              <td class="text-right">{{ e.total_fee|kes_intcomma }}</td>
+              <td class="text-right">{{ e.paid_total|kes_intcomma }}</td>
+              <td class="text-right">{{ e.balance_remaining|kes_intcomma }}</td>
             </tr>
             {% endfor %}
           </tbody>

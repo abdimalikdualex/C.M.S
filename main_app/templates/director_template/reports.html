@@ -1,6 +1,7 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
 {% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <style>
@@ -18,8 +19,8 @@
       Snapshot:
       <strong>{{ total_students|intcomma }}</strong> students ·
       <strong>{{ active_courses|intcomma }}</strong> courses ·
-      <strong>KES {{ total_revenue|intcomma }}</strong> collected ·
-      <strong>KES {{ outstanding|intcomma }}</strong> outstanding.
+      <strong>KES {{ total_revenue|kes_intcomma }}</strong> collected ·
+      <strong>KES {{ outstanding|kes_intcomma }}</strong> outstanding.
     </div>
 
     <div class="row">

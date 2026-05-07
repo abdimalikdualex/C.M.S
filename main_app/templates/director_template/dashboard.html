@@ -1,6 +1,7 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
 {% load humanize %}
+{% load money_tags %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
 <section class="content">
@@ -31,7 +32,7 @@
       <div class="col-lg-3 col-6">
         <div class="small-box bg-success">
           <div class="inner">
-            <h3>KES {{ total_revenue|intcomma }}</h3>
+            <h3>KES {{ total_revenue|kes_intcomma }}</h3>
             <p>Total Revenue (all-time)</p>
           </div>
           <div class="icon"><i class="nav-icon fas fa-coins"></i></div>
@@ -41,7 +42,7 @@
       <div class="col-lg-3 col-6">
         <div class="small-box bg-warning">
           <div class="inner">
-            <h3>KES {{ outstanding|intcomma }}</h3>
+            <h3>KES {{ outstanding|kes_intcomma }}</h3>
             <p>Outstanding Fees</p>
           </div>
           <div class="icon"><i class="nav-icon fas fa-exclamation-circle"></i></div>
@@ -71,7 +72,7 @@
                 {{ current_session.start_year|date:"Y-m-d" }} →
                 {{ current_session.end_year|date:"Y-m-d" }}
               </p>
-              <p class="mb-0">Revenue this session: <strong>KES {{ revenue_current_session|intcomma }}</strong></p>
+              <p class="mb-0">Revenue this session: <strong>KES {{ revenue_current_session|kes_intcomma }}</strong></p>
             {% else %}
               <p class="text-muted">No session is currently marked active.</p>
             {% endif %}
@@ -95,7 +96,7 @@
                   <td>{{ p.receipt_no }}</td>
                   <td>{{ p.student.admin.get_full_name }}</td>
                   <td>{{ p.course.name|default:"—" }}</td>
-                  <td class="text-right">{{ p.amount|intcomma }}</td>
+                  <td class="text-right">{{ p.amount|kes_intcomma }}</td>
                   <td>{{ p.paid_at|date:"Y-m-d" }}</td>
                 </tr>
                 {% empty %}

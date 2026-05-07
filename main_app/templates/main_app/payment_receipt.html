@@ -1,6 +1,6 @@
 {% extends 'main_app/base.html' %}
 {% load static %}
-{% load humanize %}
+{% load money_tags %}
 {% block page_title %}Receipt {{ payment.receipt_no }}{% endblock page_title %}
 {% block content %}
 <style>
@@ -33,7 +33,7 @@
       {% if payment.enrollment %}
       <div class="receipt-row"><span class="receipt-label">Enrollment start</span><span>{{ payment.enrollment.start_date|date:"Y-m-d" }}</span></div>
       {% endif %}
-      <div class="receipt-row"><span class="receipt-label">Amount (KES)</span><span><strong>{{ payment.amount|floatformat:0|intcomma }}</strong></span></div>
+      <div class="receipt-row"><span class="receipt-label">Amount (KES)</span><span><strong>{{ payment.amount|kes_intcomma }}</strong></span></div>
       <div class="receipt-row"><span class="receipt-label">Mode</span><span>{{ payment.get_mode_display }}</span></div>
       {% if payment.reference %}
       <div class="receipt-row"><span class="receipt-label">Reference</span><span>{{ payment.reference }}</span></div>

@@ -100,11 +100,25 @@
         })
     });
 
+    function parseWholeKesInput(str){
+        if (str === undefined || str === null){ return NaN; }
+        const norm = String(str).replace(/,/g, "").trim();
+        if (!norm || /[^0-9]/.test(norm)){ return NaN; }
+        const n = parseInt(norm, 10);
+        return Number.isFinite(n) ? n : NaN;
+    }
     function parseFeeFromCourseLabel(txt){
         if (!txt){ return 0; }
-        const match = txt.match(/KES\s*([0-9]+(?:\.[0-9]+)?)/i);
-        if (match && match[1]){ return parseFloat(match[1]); }
+        const match = txt.match(/KES\s*([0-9][0-9,]*)/i);
+        if (match && match[1]){
+            const n = parseWholeKesInput(match[1]);
+            return Number.isNaN(n) ? 0 : n;
+        }
         return 0;
+    }
+    function formatWholeKes(n){
+        if (!Number.isFinite(n) || n < 0){ return "0"; }
+        return n.toLocaleString("en-US");
     }
     function refreshFeePreview(){
         const courseSelect = document.getElementById("id_course");
@@ -113,15 +127,19 @@
         if (!courseSelect){ return; }
         const label = courseSelect.options[courseSelect.selectedIndex] ? courseSelect.options[courseSelect.selectedIndex].text : "";
         const courseTotal = parseFeeFromCourseLabel(label);
-        const overrideValue = overrideInput ? parseFloat(overrideInput.value || "0") : 0;
-        const total = overrideValue > 0 ? overrideValue : courseTotal;
-        const paid = parseFloat((amountInput && amountInput.value) || "0") || 0;
-        const balance = Math.max(total - paid, 0);
+        const overrideRaw = overrideInput ? overrideInput.value : "";
+        const overrideParsed = parseWholeKesInput(overrideRaw);
+        const hasOverride = !Number.isNaN(overrideParsed) && overrideParsed > 0;
+        const total = hasOverride ? overrideParsed : courseTotal;
+        const paidRaw = (amountInput && amountInput.value) ? amountInput.value : "";
+        const paidParsed = parseWholeKesInput(paidRaw);
+        const paidNum = Number.isNaN(paidParsed) ? 0 : paidParsed;
+        const balance = Math.max(total - paidNum, 0);
         if (total > 0){
             document.getElementById("fee_summary").style.display = "";
-            document.getElementById("fee_total").innerText = total.toFixed(0);
-            document.getElementById("fee_paid").innerText = paid.toFixed(0);
-            document.getElementById("fee_balance").innerText = balance.toFixed(0);
+            document.getElementById("fee_total").innerText = formatWholeKes(total);
+            document.getElementById("fee_paid").innerText = formatWholeKes(paidNum);
+            document.getElementById("fee_balance").innerText = formatWholeKes(balance);
         } else {
             document.getElementById("fee_summary").style.display = "none";
         }
