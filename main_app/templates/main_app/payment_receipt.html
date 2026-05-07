@@ -19,6 +19,7 @@
     <p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button></p>
     <div class="receipt-box">
       <div class="receipt-title">{{ college_name }}</div>
+      <div class="receipt-meta" style="font-weight:600; letter-spacing:0.06em;">{{ hub_tagline }}</div>
       {% if college_location %}<div class="receipt-meta">{{ college_location }}</div>{% endif %}
       <div class="receipt-meta">Payment receipt</div>
       <div class="receipt-row"><span class="receipt-label">Receipt no.</span><span>{{ payment.receipt_no }}</span></div>

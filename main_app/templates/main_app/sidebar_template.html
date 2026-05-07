@@ -3,9 +3,9 @@
     {% if request.user.user_type == '1' %}
     <!-- Brand Logo -->
     <a href="{% url 'admin_home' %}" class="brand-link">
-        <img src="{% static 'dist/img/cmsl.png' %} " alt="AdminLTE Logo"
+        <img src="{% static 'dist/img/cmsl.png' %} " alt="ELEVATE DIGITAL HUB Logo"
             class="brand-image img-circle elevation-3" >
-        <span class="brand-text font-weight-light">Admin Panel</span>
+        <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Admin</small></span>
     </a>
 
     <!-- Sidebar -->
@@ -379,12 +379,12 @@
                 {% elif request.user.user_type == '2' %}
                 <!-- Brand Logo -->
                 <a href="#" class="brand-link">
-                    <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
+                    <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="ELEVATE DIGITAL HUB Logo"
                         class="brand-image img-circle elevation-3" style="opacity: .8">
                     {% if staff_role == 'admission' or staff_role == 'finance' %}
-                    <span class="brand-text font-weight-light">Admission Officer Panel</span>
+                    <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Admissions</small></span>
                     {% else %}
-                    <span class="brand-text font-weight-light">Staff Panel</span>
+                    <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Instructor</small></span>
                     {% endif %}
                 </a>
 
@@ -672,9 +672,9 @@
                             {% elif request.user.user_type == '4' %}
                             <!-- Brand Logo -->
                             <a href="{% url 'director_dashboard' %}" class="brand-link">
-                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
+                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="ELEVATE DIGITAL HUB Logo"
                                     class="brand-image img-circle elevation-3" style="opacity: .8">
-                                <span class="brand-text font-weight-light">Director Panel</span>
+                                <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Director</small></span>
                             </a>
 
                             <!-- Sidebar -->
@@ -754,9 +754,9 @@
                             <!-- Brand Logo -->
                             <a href="" class="brand-link">
 
-                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
+                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="ELEVATE DIGITAL HUB Logo"
                                     class="brand-image img-circle elevation-3" style="opacity: .8">
-                                <span class="brand-text font-weight-light">Student Panel</span>
+                                <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Student</small></span>
                             </a>
 
                             <!-- Sidebar -->

@@ -123,6 +123,7 @@ TEMPLATES = [
                 'main_app.context_processors.staff_role',
                 'main_app.context_processors.operational_alerts',
                 'main_app.context_processors.active_session_context',
+                'main_app.context_processors.branding',
             ],
         },
     },
@@ -208,12 +209,17 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = os.environ.get('EMAIL_ADDRESS') 
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD')
 EMAIL_USE_TLS = True
-# DEFAULT_FROM_EMAIL = "School Management System <admin@admin.com>"
+# DEFAULT_FROM_EMAIL = "Elevate Digital Hub <admin@admin.com>"
 
 # SMS / M-Pesa confirmations: wire to main_app.sms_placeholder.send_sms when ready (no-op for MVP).
 # SMS_BACKEND = "dummy"
-COLLEGE_NAME = os.environ.get("COLLEGE_NAME", "ELEVATE COLLEGE")
+# Brand identity for ELEVATE DIGITAL HUB (single ICT training hub).
+# COLLEGE_NAME / COLLEGE_LOCATION variable names are kept for backwards
+# compatibility with existing template/view references; HUB_TAGLINE adds the
+# ICT Hub System sub-line used on receipts, reports, and the login screen.
+COLLEGE_NAME = os.environ.get("COLLEGE_NAME", "ELEVATE DIGITAL HUB")
 COLLEGE_LOCATION = os.environ.get("COLLEGE_LOCATION", "")
+HUB_TAGLINE = os.environ.get("HUB_TAGLINE", "ICT Hub System")
 
 # Use non-manifest storage to avoid build failure on third-party CSS
 # files that reference optional/missing assets.

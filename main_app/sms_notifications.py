@@ -66,7 +66,7 @@ def notify_payment_recorded(payment) -> None:
         bal = 0
     course_name = st.course.name if st.course_id else "—"
     msg = (
-        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE COLLEGE')}: Payment KES {format_money(payment.amount)} received. "
+        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE DIGITAL HUB')}: Payment KES {format_money(payment.amount)} received. "
         f"Receipt {payment.receipt_no}. Course: {course_name}. Balance KES {format_money(bal)}."
     )
     log_and_send_sms(
@@ -86,7 +86,7 @@ def notify_admission_confirmed(student) -> None:
     name = student.admin.get_full_name()
     cid = student.course.name if student.course_id else "TBC"
     msg = (
-        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE COLLEGE')}: Hi {name}, you are enrolled in {cid}. "
+        f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE DIGITAL HUB')}: Hi {name}, you are enrolled in {cid}. "
         f"Student ID: {student.student_id or 'pending'}."
     )
     log_and_send_sms(

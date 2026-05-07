@@ -69,8 +69,9 @@ def my_fee_statement(request):
 
 def _branding():
     return {
-        "college_name": getattr(settings, "COLLEGE_NAME", "ELEVATE COLLEGE"),
+        "college_name": getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
         "college_location": getattr(settings, "COLLEGE_LOCATION", ""),
+        "hub_tagline": getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
     }
 
 

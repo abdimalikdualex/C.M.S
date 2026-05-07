@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.utils import timezone
 
 from .models import Session, Staff, Student
@@ -46,4 +47,19 @@ def active_session_context(request):
         session = Session.objects.latest_first().first()
     return {
         "current_active_session": session,
+    }
+
+
+def branding(request):
+    """Expose ELEVATE DIGITAL HUB brand identity to every template.
+
+    Templates use ``college_name`` / ``college_location`` for backwards
+    compatibility with existing receipt and statement markup; ``hub_tagline``
+    is the ICT-Hub sub-line displayed on the login screen, sidebar, and
+    printable headers.
+    """
+    return {
+        "college_name": getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        "college_location": getattr(settings, "COLLEGE_LOCATION", ""),
+        "hub_tagline": getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
     }

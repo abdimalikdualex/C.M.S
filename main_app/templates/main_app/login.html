@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>C.M.S | Log In</title>
+    <title>{{ college_name }} – {{ hub_tagline }} | Log In</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css' %}">
@@ -22,7 +22,8 @@
     <div class="login-box">
         <div class="card login-card">
             <div class="card-body login-card-body">
-                <h1 class="title">ELEVATE COLLEGE</h1>
+                <h1 class="title">{{ college_name }}</h1>
+                <p class="text-center text-muted mb-3" style="letter-spacing:0.08em;">{{ hub_tagline }}</p>
                 {% if messages %}
                 <div class="col-12">
                     {% for message in messages %}

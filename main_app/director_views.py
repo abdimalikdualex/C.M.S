@@ -250,7 +250,7 @@ def director_report_students_csv(request):
 def director_report_finance_csv(request):
     snapshot = _kpi_snapshot()
     rows = [
-        ["ELEVATE COLLEGE — finance summary"],
+        ["ELEVATE DIGITAL HUB — ICT Hub finance summary"],
         ["generated_at", timezone.now().strftime("%Y-%m-%d %H:%M")],
         ["total_students", snapshot["total_students"]],
         ["active_courses", snapshot["active_courses"]],
