@@ -994,208 +994,55 @@ def _default_profile_image_file():
         return ContentFile(f.read(), name="default_staff_avatar.png")
 
 
-def manage_admission_officers(request):
+# ---------------------------------------------------------------------------
+# Retired roles (ICT Hub edition)
+#
+# Admission Officer / Finance Officer / Director are no longer supported in
+# the simplified ICT Hub. Their URL routes still resolve so any legacy link
+# or bookmark continues to respond, but every endpoint now flashes a notice
+# and bounces back to the Superadmin home. The templates and forms remain
+# on disk for reference but are unreachable from the UI.
+# ---------------------------------------------------------------------------
+_RETIRED_NOTICE = (
+    "This role has been retired in the ICT Hub edition. "
+    "Admissions, finance and oversight tasks are now owned by the Superadmin."
+)
+
+
+def _retired_role_redirect(request):
     if not _hod_superadmin_required(request):
         return redirect(reverse("login_page"))
-    q = (request.GET.get("q") or "").strip()
-    status = request.GET.get("status", "all")
-    qs = Staff.objects.filter(role__in=("admission", "finance"), is_deleted=False).select_related(
-        "admin", "course"
-    )
-    if q:
-        qs = qs.filter(
-            Q(admin__first_name__icontains=q)
-            | Q(admin__last_name__icontains=q)
-            | Q(admin__full_name__icontains=q)
-            | Q(admin__phone_number__icontains=q)
-            | Q(admin__email__icontains=q)
-        )
-    if status == "active":
-        qs = qs.filter(admin__is_active=True)
-    elif status == "inactive":
-        qs = qs.filter(admin__is_active=False)
-    qs = qs.order_by("admin__full_name", "admin__first_name", "admin__last_name")
-    context = {
-        "page_title": "Admission Officers",
-        "officers": qs,
-        "search_q": q,
-        "status": status,
-    }
-    return render(request, "hod_template/manage_admission_officers.html", context)
+    messages.info(request, _RETIRED_NOTICE)
+    return redirect(reverse("admin_home"))
+
+
+def manage_admission_officers(request):
+    return _retired_role_redirect(request)
 
 
 def add_admission_officer(request):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    form = AdmissionOfficerCreateForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        full_name = form.cleaned_data["full_name"]
-        phone = form.cleaned_data["phone_number"]
-        email = (form.cleaned_data.get("email") or "").strip().lower()
-        password = form.cleaned_data["password"]
-        is_active = form.cleaned_data.get("is_active", True)
-        if not email:
-            email = f"{phone}@walkin.local"
-            if CustomUser.objects.filter(email=email).exists():
-                email = f"{phone}.{os.urandom(3).hex()}@walkin.local"
-        try:
-            user = CustomUser(
-                email=email,
-                user_type="2",
-                full_name=full_name,
-                first_name="",
-                last_name="",
-                phone_number=phone,
-                gender="M",
-                address="-",
-            )
-            user.set_password(password)
-            user.is_active = bool(is_active)
-            cf = _default_profile_image_file()
-            user.profile_pic.save(cf.name, cf, save=False)
-            user.save()
-            user.staff.role = "admission"
-            user.staff.course = None
-            user.staff.is_deleted = False
-            user.staff.save()
-            messages.success(request, "Admission officer created.")
-            return redirect(reverse("manage_admission_officers"))
-        except Exception as e:
-            messages.error(request, "Could not create account: " + str(e))
-    context = {"page_title": "Add Admission Officer", "form": form}
-    return render(request, "hod_template/add_admission_officer_template.html", context)
+    return _retired_role_redirect(request)
 
 
 def edit_admission_officer(request, staff_id):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    staff = get_object_or_404(Staff, id=staff_id, role__in=("admission", "finance"))
-    form = AdmissionOfficerEditForm(request.POST or None, staff=staff)
-    if request.method == "POST" and form.is_valid():
-        full_name = form.cleaned_data["full_name"]
-        phone = form.cleaned_data["phone_number"]
-        email = (form.cleaned_data.get("email") or "").strip().lower()
-        password = form.cleaned_data.get("password") or ""
-        is_active = form.cleaned_data.get("is_active", True)
-        if not email:
-            email = f"{phone}@walkin.local"
-        try:
-            user = staff.admin
-            user.full_name = full_name
-            user.first_name = ""
-            user.last_name = ""
-            user.phone_number = phone
-            user.email = email
-            user.is_active = bool(is_active)
-            if password:
-                user.set_password(password)
-            user.save()
-            messages.success(request, "Updated successfully.")
-            return redirect(reverse("manage_admission_officers"))
-        except Exception as e:
-            messages.error(request, "Could not update: " + str(e))
-    context = {"page_title": "Edit Admission Officer", "form": form, "staff": staff}
-    return render(request, "hod_template/edit_admission_officer_template.html", context)
+    return _retired_role_redirect(request)
 
 
 def toggle_admission_officer_active(request, staff_id):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    staff = get_object_or_404(Staff, id=staff_id, role__in=("admission", "finance"))
-    u = staff.admin
-    u.is_active = not u.is_active
-    u.save()
-    messages.success(
-        request, "Account is now " + ("active" if u.is_active else "inactive") + "."
-    )
-    return redirect(reverse("manage_admission_officers"))
+    return _retired_role_redirect(request)
 
 
 def soft_delete_admission_officer(request, staff_id):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    staff = get_object_or_404(Staff, id=staff_id, role__in=("admission", "finance"))
-    staff.is_deleted = True
-    staff.admin.is_active = False
-    staff.save()
-    staff.admin.save()
-    messages.success(request, "Admission officer removed from active list.")
-    return redirect(reverse("manage_admission_officers"))
+    return _retired_role_redirect(request)
 
 
-# ---------------------------------------------------------------------------
-# Director (Manager) account management — superadmin only
-# ---------------------------------------------------------------------------
 def manage_directors(request):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    q = (request.GET.get("q") or "").strip()
-    status = request.GET.get("status", "all")
-    qs = Director.objects.select_related("admin")
-    if q:
-        qs = qs.filter(
-            Q(admin__full_name__icontains=q)
-            | Q(admin__first_name__icontains=q)
-            | Q(admin__last_name__icontains=q)
-            | Q(admin__email__icontains=q)
-            | Q(admin__phone_number__icontains=q)
-        )
-    if status == "active":
-        qs = qs.filter(admin__is_active=True)
-    elif status == "inactive":
-        qs = qs.filter(admin__is_active=False)
-    qs = qs.order_by("admin__full_name", "admin__email")
-    context = {
-        "page_title": "Directors",
-        "directors": qs,
-        "search_q": q,
-        "status": status,
-    }
-    return render(request, "hod_template/manage_directors.html", context)
+    return _retired_role_redirect(request)
 
 
 def add_director(request):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    form = DirectorCreateForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        full_name = form.cleaned_data["full_name"]
-        phone = form.cleaned_data["phone_number"]
-        email = form.cleaned_data["email"]
-        password = form.cleaned_data["password"]
-        is_active = form.cleaned_data.get("is_active", True)
-        try:
-            user = CustomUser(
-                email=email,
-                user_type="4",
-                full_name=full_name,
-                first_name="",
-                last_name="",
-                phone_number=phone,
-                gender="M",
-                address="-",
-            )
-            user.set_password(password)
-            user.is_active = bool(is_active)
-            cf = _default_profile_image_file()
-            user.profile_pic.save(cf.name, cf, save=False)
-            user.save()
-            messages.success(request, "Director account created.")
-            return redirect(reverse("manage_directors"))
-        except Exception as e:
-            messages.error(request, "Could not create account: " + str(e))
-    context = {"page_title": "Add Director", "form": form}
-    return render(request, "hod_template/add_director_template.html", context)
+    return _retired_role_redirect(request)
 
 
 def toggle_director_active(request, director_id):
-    if not _hod_superadmin_required(request):
-        return redirect(reverse("login_page"))
-    director = get_object_or_404(Director, id=director_id)
-    u = director.admin
-    u.is_active = not u.is_active
-    u.save()
-    messages.success(
-        request, "Account is now " + ("active" if u.is_active else "inactive") + "."
-    )
-    return redirect(reverse("manage_directors"))
+    return _retired_role_redirect(request)

@@ -1,6 +1,6 @@
 {% load static %}
 <aside class="main-sidebar sidebar-dark-info elevation-4">
-    {% if request.user.user_type == '1' %}
+    {% if request.user.user_type == '1' or request.user.user_type == '4' %}
     <!-- Brand Logo -->
     <a href="{% url 'admin_home' %}" class="brand-link">
         <img src="{% static 'dist/img/cmsl.png' %} " alt="ELEVATE DIGITAL HUB Logo"
@@ -114,44 +114,6 @@
                 </li>
 
 
-                <li class="nav-item has-treeview">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-book"></i>
-                        <p>
-                            Subject
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            {% url 'add_subject' as add_subject %}
-                            <a href="{{add_subject}}"
-                                class="nav-link  {% if add_subject == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Add Subject
-
-                                </p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            {% url 'manage_subject' as manage_subject %}
-                            {% url 'edit_subject' subject_id as edit_subject %}
-                            <a href="{{manage_subject}}"
-                                class="nav-link  {% if edit_subject == request.path or manage_subject == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Manage Subject
-
-                                </p>
-                            </a>
-                        </li>
-
-                    </ul>
-                </li>
-
-
-
 
 
                 <li class="nav-item has-treeview">
@@ -197,7 +159,7 @@
                     <a href="{{add_staff}}" class="nav-link {% if add_staff == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-user-plus"></i>
                         <p>
-                            Add Staff
+                            Add Instructor
 
                         </p>
                     </a>
@@ -210,40 +172,10 @@
                         class="nav-link {% if manage_staff == request.path or request.path == edit_staff %} active {% endif %}">
                         <i class="nav-icon fas fa-th"></i>
                         <p>
-                            Manage Staff
+                            Manage Instructors
 
                         </p>
                     </a>
-                </li>
-                <li class="nav-item has-treeview">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-users-cog"></i>
-                        <p>
-                            User Management
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            {% url 'manage_admission_officers' as manage_admission_officers %}
-                            {% url 'add_admission_officer' as add_admission_officer %}
-                            {% url 'edit_admission_officer' staff_id as edit_admission_officer %}
-                            <a href="{{ manage_admission_officers }}"
-                                class="nav-link {% if manage_admission_officers == request.path or add_admission_officer == request.path or request.path == edit_admission_officer %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Admission Officers</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            {% url 'manage_directors' as manage_directors %}
-                            {% url 'add_director' as add_director %}
-                            <a href="{{ manage_directors }}"
-                                class="nav-link {% if manage_directors == request.path or add_director == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Directors</p>
-                            </a>
-                        </li>
-                    </ul>
                 </li>
                 <li class="nav-item">
                     {% url 'add_student' as add_student%}
@@ -292,13 +224,41 @@
                     </a>
                 </li>
 
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-coins"></i>
+                        <p>
+                            Fees &amp; Payments
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            {% url 'staff_record_payment' as staff_record_payment %}
+                            <a href="{{ staff_record_payment }}"
+                                class="nav-link {% if staff_record_payment == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Record payment</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'staff_finance_reports' as staff_finance_reports %}
+                            <a href="{{ staff_finance_reports }}"
+                                class="nav-link {% if staff_finance_reports == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Finance summary</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
                 <li class="nav-item">
                     {% url 'admin_notify_staff' as admin_notify_staff %}
                     <a href="{{admin_notify_staff}}"
                         class="nav-link {% if admin_notify_staff == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-bullhorn"></i>
                         <p>
-                            Notify Staff
+                            Notify Instructor
 
                         </p>
                     </a>
@@ -346,7 +306,7 @@
                         class="nav-link   {% if staff_feedback_message == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-comment"></i>
                         <p>
-                            Staff Feedback
+                            Instructor Feedback
 
                         </p>
                     </a>
@@ -358,7 +318,7 @@
                         class="nav-link  {% if view_staff_leave == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-check-double"></i>
                         <p>
-                            Staff Leave
+                            Instructor Leave
 
                         </p>
                     </a>
@@ -381,11 +341,7 @@
                 <a href="#" class="brand-link">
                     <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="ELEVATE DIGITAL HUB Logo"
                         class="brand-image img-circle elevation-3" style="opacity: .8">
-                    {% if staff_role == 'admission' or staff_role == 'finance' %}
-                    <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Admissions</small></span>
-                    {% else %}
                     <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Instructor</small></span>
-                    {% endif %}
                 </a>
 
                 <!-- Sidebar -->
@@ -415,15 +371,8 @@
 
                             <li class="nav-item">
                                 {% url 'staff_home' as staff_home %}
-                                {% url 'staff_course_students' as staff_course_students %}
-                                {% url 'staff_finance_reports' as staff_finance_reports %}
-                                {% if staff_role == 'finance' or staff_role == 'admission' %}
-                                <a href="{{ staff_course_students }}"
-                                    class="nav-link {% if staff_course_students == request.path or request.resolver_match.url_name == 'admission_dashboard' %} active {% endif %}">
-                                {% else %}
                                 <a href="{{ staff_home }}"
                                     class="nav-link {% if staff_home == request.path %} active {% endif %}">
-                                {% endif %}
                                     <i class="nav-icon fas fa-home"></i>
                                     <p>
                                         Home
@@ -439,20 +388,6 @@
                                     </p>
                                 </a>
                             </li>
-                            {% if staff_role == 'admission' or staff_role == 'finance' %}
-                            <li class="nav-item">
-                                <a href="{% url 'staff_course_students' %}?pending=1" class="nav-link">
-                                    <i class="nav-icon fas fa-exclamation-circle"></i>
-                                    <p>Pending fees <span class="badge badge-warning right">{{ pending_fee_alert_count }}</span></p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{% url 'staff_course_students' %}?new_today=1" class="nav-link">
-                                    <i class="nav-icon fas fa-user-check"></i>
-                                    <p>New enrollments today <span class="badge badge-info right">{{ new_enrollments_today_count }}</span></p>
-                                </a>
-                            </li>
-                            {% endif %}
 
                             <li class="nav-item">
                                 {% url 'staff_view_profile' as staff_view_profile %}
@@ -466,7 +401,6 @@
                                 </a>
                             </li>
 
-                            {% if staff_role == 'instructor' %}
                             <li class="nav-item">
                                 {% url 'staff_my_classes' as staff_my_classes %}
                                 <a href="{{staff_my_classes}}"
@@ -474,28 +408,6 @@
                                     <i class="nav-icon fas fa-users"></i>
                                     <p>
                                         My Classes / Students
-                                    </p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'staff_add_result' as staff_add_result %}
-                                <a href="{{staff_add_result}}"
-                                    class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-poll"></i>
-                                    <p>
-                                        Add Result
-
-                                    </p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'edit_student_result' as edit_student_result %}
-                                <a href="{{edit_student_result}}"
-                                    class="nav-link {% if edit_student_result == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-th"></i>
-                                    <p>
-                                        Edit Result
-
                                     </p>
                                 </a>
                             </li>
@@ -548,90 +460,6 @@
                                     </li>
                                 </ul>
                             </li>
-                            {% endif %}
-
-                            {% if staff_role == 'admission' or staff_role == 'finance' %}
-                            <li class="nav-item">
-                                {% url 'staff_course_students' as staff_course_students_nav %}
-                                <a href="{{ staff_course_students_nav }}"
-                                    class="nav-link {% if staff_course_students_nav == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-users"></i>
-                                    <p>Students &amp; balances</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'staff_students_by_course' as staff_students_by_course %}
-                                <a href="{{ staff_students_by_course }}"
-                                    class="nav-link {% if request.resolver_match.url_name == 'staff_students_by_course' %} active {% endif %}">
-                                    <i class="nav-icon fas fa-layer-group"></i>
-                                    <p>Students by course</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'staff_finance_reports' as staff_finance_reports_nav %}
-                                <a href="{{ staff_finance_reports_nav }}"
-                                    class="nav-link {% if staff_finance_reports_nav == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-chart-pie"></i>
-                                    <p>Finance summary</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'staff_record_payment' as staff_record_payment %}
-                                <a href="{{ staff_record_payment }}"
-                                    class="nav-link {% if staff_record_payment == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-hand-holding-usd"></i>
-                                    <p>Record payment</p>
-                                </a>
-                            </li>
-                            {% endif %}
-                            {% if staff_role == 'admission' or staff_role == 'finance' %}
-                            <li class="nav-item">
-                                {% url 'admission_add_student' as admission_add_student %}
-                                <a href="{{ admission_add_student }}"
-                                    class="nav-link {% if admission_add_student == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-user-plus"></i>
-                                    <p>Register Student</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'admission_enroll_existing_student' as admission_enroll_existing_student %}
-                                <a href="{{ admission_enroll_existing_student }}"
-                                    class="nav-link {% if admission_enroll_existing_student == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-link"></i>
-                                    <p>Enroll Existing Student</p>
-                                </a>
-                            </li>
-                            {% endif %}
-                            {% if staff_role == 'admission' or staff_role == 'finance' %}
-                            <li class="nav-item has-treeview">
-                                <a href="#" class="nav-link">
-                                    <i class="nav-icon fas fa-bookmark"></i>
-                                    <p>
-                                        Course
-                                        <i class="fas fa-angle-left right"></i>
-                                    </p>
-                                </a>
-                                <ul class="nav nav-treeview">
-                                    <li class="nav-item">
-                                        {% url 'add_course' as add_course %}
-                                        <a href="{{ add_course }}"
-                                            class="nav-link {% if add_course == request.path %} active {% endif %}">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Add Course</p>
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        {% url 'manage_course' as manage_course %}
-                                        {% url 'edit_course' course_id as edit_course %}
-                                        <a href="{{ manage_course }}"
-                                            class="nav-link {% if edit_course == request.path or manage_course == request.path %} active {% endif %}">
-                                            <i class="far fa-circle nav-icon"></i>
-                                            <p>Manage Course</p>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </li>
-                            {% endif %}
 
                             <li class="nav-item">
                                 {% url 'staff_view_notification' as staff_view_notification %}
@@ -668,87 +496,6 @@
                                     </p>
                                 </a>
                             </li>
-
-                            {% elif request.user.user_type == '4' %}
-                            <!-- Brand Logo -->
-                            <a href="{% url 'director_dashboard' %}" class="brand-link">
-                                <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="ELEVATE DIGITAL HUB Logo"
-                                    class="brand-image img-circle elevation-3" style="opacity: .8">
-                                <span class="brand-text font-weight-light">{{ college_name }}<br><small class="text-muted">{{ hub_tagline }} · Director</small></span>
-                            </a>
-
-                            <!-- Sidebar -->
-                            <div class="sidebar">
-                                <!-- Sidebar user panel (optional) -->
-                                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
-                                    <div class="image">
-                                        <img src="{{ request.user.profile_pic}}" class="img-circle elevation-2" alt="User Image">
-                                    </div>
-                                    <div class="info">
-                                        <a href="#" class="d-block">
-                                            {% if request.user.full_name %}
-                                                {{ request.user.full_name }}
-                                            {% elif request.user.first_name or request.user.last_name %}
-                                                {{ request.user.first_name }} {{ request.user.last_name }}
-                                            {% else %}
-                                                Director
-                                            {% endif %}
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <!-- Sidebar Menu -->
-                                <nav class="mt-2">
-                                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                                        <li class="nav-item">
-                                            {% url 'director_dashboard' as director_dashboard %}
-                                            <a href="{{ director_dashboard }}" class="nav-link {% if director_dashboard == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-home"></i>
-                                                <p>Dashboard</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_students' as director_students %}
-                                            <a href="{{ director_students }}" class="nav-link {% if director_students == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-user-graduate"></i>
-                                                <p>Students</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_courses' as director_courses %}
-                                            <a href="{{ director_courses }}" class="nav-link {% if director_courses == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-th-list"></i>
-                                                <p>Courses</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_sessions' as director_sessions %}
-                                            <a href="{{ director_sessions }}" class="nav-link {% if director_sessions == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-calendar-check"></i>
-                                                <p>Sessions</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_finance' as director_finance %}
-                                            <a href="{{ director_finance }}" class="nav-link {% if director_finance == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-coins"></i>
-                                                <p>Finance</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_reports' as director_reports %}
-                                            <a href="{{ director_reports }}" class="nav-link {% if director_reports == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-file-csv"></i>
-                                                <p>Reports</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'director_staff' as director_staff %}
-                                            <a href="{{ director_staff }}" class="nav-link {% if director_staff == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-users"></i>
-                                                <p>Staff</p>
-                                            </a>
-                                        </li>
 
                             {% else %}
                             <!-- Brand Logo -->

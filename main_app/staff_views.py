@@ -18,7 +18,31 @@ from .money import format_money
 from .roles import require_admission_desk, require_instructor
 from .sms_notifications import notify_admission_confirmed
 
+class _SuperadminPass:
+    """Truthy sentinel returned by ``_require_staff_role`` for Superadmin users.
+
+    Superadmin (CustomUser.user_type in {"1", "4"}) does not have a Staff
+    profile but is allowed full access to the admission/finance views. The
+    callers only test the return value for truthiness, so this sentinel is
+    sufficient — they never call ``.role`` / ``.course`` on it.
+    """
+
+    role = "superadmin"
+    course = None
+    course_id = None
+
+
+_SUPERADMIN_PASS = _SuperadminPass()
+
+
+def _is_superadmin(user) -> bool:
+    return str(getattr(user, "user_type", "") or "").strip() in ("1", "4")
+
+
 def _require_staff_role(request, allowed_roles):
+    """Gate admission/finance views by Staff.role, pass Superadmin through."""
+    if _is_superadmin(request.user):
+        return Staff.objects.filter(admin=request.user).first() or _SUPERADMIN_PASS
     staff = get_object_or_404(Staff, admin=request.user)
     if staff.role not in allowed_roles:
         messages.error(request, "You are not allowed to access this page.")
@@ -137,10 +161,15 @@ def admission_add_student(request):
 
 
 def staff_course_students(request):
-    staff = get_object_or_404(Staff, admin=request.user)
-    if staff.role not in ("admission", "finance"):
-        messages.error(request, "You do not have access to this page.")
-        return redirect(reverse("staff_home"))
+    if not _is_superadmin(request.user):
+        try:
+            staff = Staff.objects.get(admin=request.user)
+        except Staff.DoesNotExist:
+            messages.error(request, "You do not have access to this page.")
+            return redirect(reverse("staff_home"))
+        if staff.role not in ("admission", "finance"):
+            messages.error(request, "You do not have access to this page.")
+            return redirect(reverse("staff_home"))
     q = (request.GET.get("q") or "").strip()
     course_id = request.GET.get("course")
     only_pending = request.GET.get("pending") == "1"

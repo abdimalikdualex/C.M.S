@@ -1,44 +1,33 @@
 """
-Role-based dashboards (Kenyan short-course college MVP).
+Role-based dashboards — ELEVATE DIGITAL HUB ICT Hub edition.
 
-CustomUser.user_type: "1" = HOD / Super Admin, "2" = Staff, "3" = Student,
-                     "4" = Director (Manager)
-Staff.role: instructor | admission | finance
+The hub uses ONLY three operational roles. Two legacy roles (Director and
+Admission/Finance Officer) remain as DB columns for backwards compatibility
+with existing rows but are folded into the active three at routing time:
 
-Admission + finance share one operations desk (register, enroll, payments, receipts).
+  CustomUser.user_type == "1" (HOD / Superadmin)        → Superadmin
+  CustomUser.user_type == "4" (legacy Director)         → Superadmin   (folded)
+  CustomUser.user_type == "2" with Staff.role=instructor → Instructor
+  CustomUser.user_type == "2" with Staff.role=admission |
+                                  Staff.role=finance     → Instructor   (folded)
+  CustomUser.user_type == "3"                            → Student
 
-Permission matrix (concise; middleware in main_app.middleware enforces routing,
-forms enforce field exposure, and decorators below enforce per-view access):
+Active permission surface:
 
-  Superadmin (HOD)
-    - Full access to all admin pages, course/session/staff/student management,
-      finance reports, audit log, and dashboards. Cannot access student-only pages.
-
-  Director (Manager)
-    - Read-only oversight: KPIs, students, courses, sessions, staff,
-      finance summary, reports (CSV/Excel exports).
-    - One write capability: activate / close a Session.
-    - Cannot: register students, record payments, take attendance, edit any
-      operational data. "See everything, change very little."
-
-  Admission/Finance desk (one combined desk)
-    - Can: register students (StudentForm with course+session+agreed fee),
-      enroll existing students into more courses, record payments, print
-      receipts, view/filter students by course->session, view finance reports.
-    - Cannot: take attendance, manage assessments, edit grades, manage other
-      staff, edit core course definitions outside HOD_ALLOWED_FOR_ADMISSION_DESK.
-    - Form rule: StaffForm strips the `course` field for these roles.
+  Superadmin
+    - Full access. Owns enrollment, fees, payments, sessions, courses,
+      instructor management, reports, receipts.
 
   Instructor
     - Can: view assigned course students, take/update attendance, create
-      assessments, grade submissions, enter results.
-    - Cannot: register students, record payments, view finance reports, manage
-      other staff or sessions.
+      assessments, grade submissions.
+    - Cannot: register students, record payments, manage other staff or
+      sessions.
     - Form rule: instructors must have a teaching course assignment.
 
   Student
-    - Can: view own attendance, fees, results, assessments; submit work; apply
-      leave; send feedback.
+    - Can: view own attendance, fees, assessments; submit work; apply leave;
+      send feedback.
     - Cannot: see any admin/staff page.
 """
 from functools import wraps
@@ -151,24 +140,22 @@ def is_admission_desk_staff(user) -> bool:
 
 def get_dashboard_role(user):
     """
-    Logical dashboard role for routing and ACL (not always equal to Staff.role).
-    Finance staff map to ADMISSION_OFFICER — one combined desk.
+    Logical dashboard role for routing and ACL.
+
+    Legacy collapse rules (ICT Hub edition): user_type='4' (Director) and
+    Staff.role in ('admission','finance') are no longer creatable from the UI.
+    Any pre-existing accounts with those values are mapped onto the three
+    supported roles so they can still log in without ever surfacing the
+    retired dashboards.
     """
     if not user.is_authenticated:
         return None
     ut = str(getattr(user, "user_type", "") or "").strip()
-    if ut == "1":
+    if ut in ("1", "4"):
         return SUPERADMIN
     if ut == "3":
         return STUDENT
-    if ut == "4":
-        return DIRECTOR
     if ut == "2":
-        staff = get_staff_profile(user)
-        if staff is None:
-            return INSTRUCTOR
-        if staff.role in ("admission", "finance"):
-            return ADMISSION_OFFICER
         return INSTRUCTOR
     return None
 
@@ -178,10 +165,6 @@ def get_post_login_redirect_url(user):
     role = get_dashboard_role(user)
     if role == SUPERADMIN:
         return reverse("superadmin_dashboard")
-    if role == DIRECTOR:
-        return reverse("director_dashboard")
-    if role == ADMISSION_OFFICER:
-        return reverse("admission_dashboard")
     if role == INSTRUCTOR:
         return reverse("instructor_dashboard")
     if role == STUDENT:

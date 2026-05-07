@@ -250,36 +250,28 @@ class AdminForm(CustomUserForm):
 
 class StaffForm(CustomUserForm):
     """
-    Course is NOT a generic user field — it only applies to instructors (teaching assignment).
-    Admission and finance staff have no course field on the form; value is always cleared.
-    Students get course only on StudentForm.
+    ICT Hub edition: the only role that can be created here is Instructor.
+    The legacy admission/finance choices are intentionally hidden so the
+    superadmin owns admissions and fee tracking, and the instructor pool
+    stays clean.
     """
+
+    role = forms.ChoiceField(
+        choices=(("instructor", "Instructor"),),
+        initial="instructor",
+        widget=forms.HiddenInput(),
+    )
 
     def __init__(self, *args, **kwargs):
         super(StaffForm, self).__init__(*args, **kwargs)
-        role_val = None
-        if self.data and "role" in self.data:
-            role_val = (self.data.get("role") or "").strip()
-        elif getattr(self.instance, "pk", None) and getattr(self.instance, "role", None):
-            role_val = self.instance.role
-        if role_val is None:
-            role_val = "instructor"
-        # Do not render course at all for admission/finance — avoids wrong assignments and UI confusion.
-        if role_val in ("admission", "finance"):
-            self.fields.pop("course", None)
-        else:
-            self.fields["course"].required = True
-            self.fields["course"].empty_label = "Select course (teaching assignment)"
+        self.fields["course"].required = True
+        self.fields["course"].empty_label = "Select course (teaching assignment)"
 
     def clean(self):
         cleaned = super(StaffForm, self).clean()
-        role = cleaned.get("role")
-        course = cleaned.get("course")
-        if role == "instructor":
-            if not course:
-                raise forms.ValidationError("Instructors must be assigned to a course.")
-        if role in ("admission", "finance"):
-            cleaned["course"] = None
+        cleaned["role"] = "instructor"
+        if not cleaned.get("course"):
+            raise forms.ValidationError("Instructors must be assigned to a course.")
         return cleaned
 
     class Meta(CustomUserForm.Meta):

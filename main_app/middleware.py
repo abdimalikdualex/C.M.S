@@ -2,27 +2,30 @@ from django.urls import resolve, reverse
 from django.utils.deprecation import MiddlewareMixin
 from django.shortcuts import redirect
 
-from .roles import (
-    ADMISSION_DESK_STAFF_URL_NAMES,
-    ADMISSION_OFFICER,
-    HOD_ALLOWED_FOR_ADMISSION_DESK,
-    HOD_ALLOWED_FOR_DIRECTOR,
-    INSTRUCTOR,
-    INSTRUCTOR_ONLY_STAFF_URLS,
-    get_dashboard_role,
-)
-
 
 class LoginCheckMiddleWare(MiddlewareMixin):
+    """
+    URL-area routing for the ICT Hub edition.
+
+    Three active roles only:
+      * Superadmin (CustomUser.user_type in {"1", "4"}) — full access except
+        student-only views. ut="4" is the legacy Director column folded in.
+      * Instructor (CustomUser.user_type == "2") — staff/assessment area only.
+        Legacy admission/finance staff also land here; they can browse the
+        instructor pages but have no course assignment so they see empty
+        listings (effective soft-deactivation without a destructive migration).
+      * Student   (CustomUser.user_type == "3") — student area only.
+    """
+
     def process_view(self, request, view_func, view_args, view_kwargs):
         modulename = view_func.__module__
         user = request.user
 
         try:
             match = resolve(request.path)
-            url_name = match.url_name
+            url_name = match.url_name  # noqa: F841 — kept for future per-URL rules
         except Exception:
-            url_name = None
+            url_name = None  # noqa: F841
 
         if not user.is_authenticated:
             if request.path in (reverse("login_page"), reverse("user_login")):
@@ -32,32 +35,14 @@ class LoginCheckMiddleWare(MiddlewareMixin):
             return redirect(reverse("login_page"))
 
         ut = str(getattr(user, "user_type", "") or "").strip()
-        desk = get_dashboard_role(user)
 
-        if ut == "1":
+        # Superadmin (and legacy Director rows folded in).
+        if ut in ("1", "4"):
             if modulename == "main_app.student_views":
                 return redirect(reverse("superadmin_dashboard"))
             return None
 
-        if ut == "4":
-            # Director: read-only oversight. Allow director_views freely; allow
-            # a tiny whitelist of HOD URLs (notably set_active_session); push
-            # everything else back to the director dashboard.
-            if modulename == "main_app.director_views":
-                return None
-            if modulename == "main_app.hod_views" and url_name in HOD_ALLOWED_FOR_DIRECTOR:
-                return None
-            if modulename in (
-                "main_app.hod_views",
-                "main_app.staff_views",
-                "main_app.student_views",
-                "main_app.billing_views",
-                "main_app.assessment_views",
-                "main_app.EditResultView",
-            ):
-                return redirect(reverse("director_dashboard"))
-            return None
-
+        # Student.
         if ut == "3":
             if modulename in ("main_app.hod_views", "main_app.staff_views", "main_app.EditResultView"):
                 return redirect(reverse("student_dashboard"))
@@ -65,40 +50,12 @@ class LoginCheckMiddleWare(MiddlewareMixin):
                 return redirect(reverse("student_dashboard"))
             return None
 
+        # Instructor (and any legacy admission/finance staff folded in).
         if ut == "2":
-            if modulename == "main_app.billing_views":
-                if desk == ADMISSION_OFFICER:
-                    return None
+            if modulename in ("main_app.billing_views", "main_app.student_views"):
                 return redirect(reverse("instructor_dashboard"))
-
-            if modulename == "main_app.student_views":
-                if desk == ADMISSION_OFFICER:
-                    return redirect(reverse("admission_dashboard"))
-                return redirect(reverse("instructor_dashboard"))
-
             if modulename == "main_app.hod_views":
-                if desk == ADMISSION_OFFICER and url_name in HOD_ALLOWED_FOR_ADMISSION_DESK:
-                    return None
-                if desk == INSTRUCTOR:
-                    return redirect(reverse("instructor_dashboard"))
-                return redirect(reverse("admission_dashboard"))
-
-            is_staff_area = modulename in (
-                "main_app.staff_views",
-                "main_app.EditResultView",
-                "main_app.assessment_views",
-            )
-            if is_staff_area:
-                if desk == ADMISSION_OFFICER:
-                    if url_name in INSTRUCTOR_ONLY_STAFF_URLS:
-                        return redirect(reverse("admission_dashboard"))
-                    return None
-                if desk == INSTRUCTOR:
-                    if url_name in ADMISSION_DESK_STAFF_URL_NAMES:
-                        return redirect(reverse("instructor_dashboard"))
-                    return None
-                return None
-
+                return redirect(reverse("instructor_dashboard"))
             return None
 
         return redirect(reverse("login_page"))
