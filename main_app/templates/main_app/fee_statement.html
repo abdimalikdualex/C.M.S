@@ -15,7 +15,10 @@
 </style>
 <section class="content">
   <div class="container-fluid">
-    <p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button></p>
+    <p class="no-print mb-2">
+      <button type="button" class="btn btn-primary mr-2" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+      <a href="{% url 'student_fee_statement_pdf' student.id %}" class="btn btn-outline-secondary"><i class="fas fa-file-download"></i> Download PDF</a>
+    </p>
     <div class="stmt-box">
       <div class="stmt-title">{{ college_name }}</div>
       <div class="stmt-sub" style="font-weight:600; letter-spacing:0.06em;">{{ hub_tagline }}</div>
@@ -62,7 +65,10 @@
               <td>{% if p.enrollment %}{{ p.enrollment.course.name }}{% elif p.course %}{{ p.course.name }}{% else %}—{% endif %}</td>
               <td>
                 {{ p.receipt_no|default:"—" }}
-                {% if p.id %}<a href="{% url 'payment_receipt' p.id %}" class="no-print">Receipt</a>{% endif %}
+                {% if p.id %}<span class="no-print">
+                  <a href="{% url 'payment_receipt' p.id %}">View</a>
+                  · <a href="{% url 'payment_receipt_pdf' p.id %}">PDF</a>
+                </span>{% endif %}
               </td>
               <td>{{ p.amount|floatformat:0|intcomma }}</td>
               <td>{{ p.get_mode_display }}</td>

@@ -16,7 +16,10 @@
 </style>
 <section class="content">
   <div class="container-fluid">
-    <p class="no-print"><button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button></p>
+    <p class="no-print mb-2">
+      <button type="button" class="btn btn-primary mr-2" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+      <a href="{% url 'payment_receipt_pdf' payment.id %}" class="btn btn-outline-secondary"><i class="fas fa-file-download"></i> Download PDF</a>
+    </p>
     <div class="receipt-box">
       <div class="receipt-title">{{ college_name }}</div>
       <div class="receipt-meta" style="font-weight:600; letter-spacing:0.06em;">{{ hub_tagline }}</div>

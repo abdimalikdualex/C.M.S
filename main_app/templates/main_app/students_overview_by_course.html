@@ -3,8 +3,16 @@
 {% load humanize %}
 {% block page_title %}{{ page_title }}{% endblock page_title %}
 {% block content %}
+<style>
+  @media print {
+    .no-print { display: none !important; }
+  }
+</style>
 <section class="content">
   <div class="container-fluid">
+    <p class="no-print mb-2">
+      <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+    </p>
     <div class="card card-dark mb-3">
       <div class="card-header"><h3 class="card-title">{{ page_title }}</h3></div>
       <div class="card-body">

@@ -320,14 +320,29 @@ urlpatterns = [
         name="payment_receipt",
     ),
     path(
+        "receipt/payment/<int:payment_id>/download.pdf",
+        billing_views.payment_receipt_pdf,
+        name="payment_receipt_pdf",
+    ),
+    path(
         "fees/student/<int:student_id>/",
         billing_views.student_fee_statement,
         name="student_fee_statement",
     ),
     path(
+        "fees/student/<int:student_id>/download.pdf",
+        billing_views.student_fee_statement_pdf,
+        name="student_fee_statement_pdf",
+    ),
+    path(
         "fees/my/",
         billing_views.my_fee_statement,
         name="student_my_fee_statement",
+    ),
+    path(
+        "fees/my/download.pdf",
+        billing_views.my_fee_statement_pdf,
+        name="student_my_fee_statement_pdf",
     ),
 
 ]
