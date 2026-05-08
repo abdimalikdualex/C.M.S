@@ -14,11 +14,48 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Tabl
 
 from .student_export_utils import enrollment_row_cells, group_students_for_pdf, student_row_cells
 
+# A4 width 210mm — sum(colWidths) must fit inside page minus left/right margins or ReportLab
+# scales the table down (small, cramped text).
+_STUDENT_MARGINS_LR_MM = (12, 12)
+
+
+def _table_comfort_style(*, body_font: float = 8, header_font: float = 8.5) -> list:
+    """Readable padding and typography for register tables."""
+    return [
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("FONTSIZE", (0, 0), (-1, 0), header_font),
+        ("FONTSIZE", (0, 1), (-1, -1), body_font),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c5282")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#a8a8a8")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f4f6f8")]),
+    ]
+
 
 def _safe_xml(s: str) -> str:
     from xml.sax.saxutils import escape
 
     return escape(str(s or ""))
+
+
+def _cell_paragraph(text: str, *, font_size: float = 8, leading: float | None = None) -> Paragraph:
+    """Table body cell with wrapping (column width from Table colWidths)."""
+    ld = leading if leading is not None else round(font_size * 1.25, 1)
+    st = ParagraphStyle(
+        "RegCellPara",
+        fontName="Helvetica",
+        fontSize=font_size,
+        leading=ld,
+        alignment=0,
+    )
+    return Paragraph(_safe_xml(text), st)
 
 
 def _logo_flowable(max_w_mm=45, max_h_mm=18):
@@ -83,8 +120,8 @@ def build_student_register_pdf(
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=14 * mm,
-        rightMargin=14 * mm,
+        leftMargin=_STUDENT_MARGINS_LR_MM[0] * mm,
+        rightMargin=_STUDENT_MARGINS_LR_MM[1] * mm,
         topMargin=12 * mm,
         bottomMargin=14 * mm,
     )
@@ -112,7 +149,16 @@ def build_student_register_pdf(
         "Enrol. date",
         "Fee status",
     ]
-    col_w = [20 * mm, 42 * mm, 22 * mm, 32 * mm, 30 * mm, 18 * mm, 26 * mm]
+    # Usable width 210 - 12 - 12 = 186mm (must match sum of colWidths exactly)
+    col_w = [
+        20 * mm,  # Reg. no.
+        42 * mm,  # Full name
+        23 * mm,  # Phone
+        32 * mm,  # Course
+        28 * mm,  # Session
+        18 * mm,  # Enrol. date
+        23 * mm,  # Fee status
+    ]
 
     gb = (group_by or "").strip()
     groups = group_students_for_pdf(students, gb) if gb in ("course", "session") else [("", students)]
@@ -123,22 +169,9 @@ def build_student_register_pdf(
             story.append(Spacer(1, 2 * mm))
         data = [[_safe_xml(h) for h in header]]
         for st in group:
-            data.append([_safe_xml(c) for c in student_row_cells(st)])
+            data.append([_cell_paragraph(c, font_size=8) for c in student_row_cells(st)])
         tbl = Table(data, colWidths=col_w, repeatRows=1)
-        tbl.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c5282")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
-                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
-                ]
-            )
-        )
+        tbl.setStyle(TableStyle(_table_comfort_style(body_font=8, header_font=8.5)))
         story.append(tbl)
         if idx < len(groups) - 1:
             story.append(Spacer(1, 6 * mm))
@@ -190,25 +223,22 @@ def build_enrollment_register_pdf(
         "Status",
         "Fee",
     ]
-    col_w = [18 * mm, 38 * mm, 20 * mm, 30 * mm, 28 * mm, 18 * mm, 18 * mm, 24 * mm]
+    # Usable width 210 - 12 - 12 = 186mm
+    col_w = [
+        17 * mm,
+        35 * mm,
+        19 * mm,
+        28 * mm,
+        26 * mm,
+        16 * mm,
+        16 * mm,
+        29 * mm,
+    ]
     data = [[_safe_xml(h) for h in header]]
     for enr in enrollments:
-        data.append([_safe_xml(c) for c in enrollment_row_cells(enr)])
+        data.append([_cell_paragraph(c, font_size=7.5) for c in enrollment_row_cells(enr)])
     tbl = Table(data, colWidths=col_w, repeatRows=1)
-    tbl.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2c5282")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 6.5),
-                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
-            ]
-        )
-    )
+    tbl.setStyle(TableStyle(_table_comfort_style(body_font=7.5, header_font=8)))
     story.append(tbl)
     doc.build(story)
     return buf.getvalue()
