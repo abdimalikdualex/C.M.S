@@ -40,7 +40,10 @@
             {% endfor %}
           </select>
           <button type="submit" class="btn btn-primary mb-2">Apply</button>
+          <a href="{% url 'admin_export_enrollments_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger mb-2 ml-sm-2"><i class="fas fa-file-pdf"></i> Download PDF</a>
+          <a href="{% url 'admin_export_enrollments_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline-success mb-2 ml-sm-1"><i class="fas fa-file-excel"></i> Export CSV</a>
         </form>
+        <p class="text-muted small mb-0 no-print">Exports reflect the same filters as this overview (one row per enrolment). Superadmin only.</p>
       </div>
     </div>
 

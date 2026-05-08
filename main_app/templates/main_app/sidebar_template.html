@@ -216,6 +216,14 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    {% url 'manage_student' as manage_student_export %}
+                    <a href="{{ manage_student_export }}#export-student-register"
+                        class="nav-link">
+                        <i class="nav-icon fas fa-file-download"></i>
+                        <p>Reports — export lists</p>
+                    </a>
+                </li>
+                <li class="nav-item">
                     {% url 'admin_assessments' as admin_assessments %}
                     <a href="{{ admin_assessments }}"
                         class="nav-link {% if admin_assessments == request.path %} active {% endif %}">

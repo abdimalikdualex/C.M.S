@@ -8,21 +8,56 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
-                <form method="get" class="form-inline mb-3">
+                <form method="get" id="student-filter-form" class="form-inline align-items-end flex-wrap mb-3">
                     <input type="search" name="q" value="{{ search_q }}" class="form-control mr-2 mb-2"
                         placeholder="Search name, phone, course or student ID">
+                    <select name="course" class="form-control mr-2 mb-2">
+                        <option value="">All courses</option>
+                        {% for c in all_courses %}
+                        <option value="{{ c.id }}" {% if filter_course_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
                     <select name="session" class="form-control mr-2 mb-2">
                         <option value="">All sessions</option>
                         {% for s in all_sessions %}
                         <option value="{{ s.id }}" {% if filter_session_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.intake_label }}{% if s.is_active %} (active){% endif %}</option>
                         {% endfor %}
                     </select>
+                    <select name="enrollment_status" class="form-control mr-2 mb-2">
+                        <option value="" {% if not filter_enrollment_status %}selected{% endif %}>Any enrollment status</option>
+                        <option value="active" {% if filter_enrollment_status == "active" %}selected{% endif %}>Has active enrollment</option>
+                        <option value="completed" {% if filter_enrollment_status == "completed" %}selected{% endif %}>Has completed enrollment</option>
+                        <option value="cancelled" {% if filter_enrollment_status == "cancelled" %}selected{% endif %}>Has cancelled enrollment</option>
+                    </select>
+                    <select name="group_by" class="form-control mr-2 mb-2" title="PDF sections only">
+                        <option value="">PDF: no grouping</option>
+                        <option value="course" {% if request.GET.group_by == "course" %}selected{% endif %}>PDF: group by course</option>
+                        <option value="session" {% if request.GET.group_by == "session" %}selected{% endif %}>PDF: group by session</option>
+                    </select>
                     {% if only_pending %}<input type="hidden" name="pending" value="1">{% endif %}
                     {% if only_new_today %}<input type="hidden" name="new_today" value="1">{% endif %}
-                    <button type="submit" class="btn btn-primary mb-2">Search</button>
+                    <button type="submit" class="btn btn-primary mb-2">Apply filters</button>
                 </form>
+
+                <div class="card card-outline card-secondary mb-3" id="export-student-register">
+                    <div class="card-header">
+                        <h3 class="card-title mb-0">Download student register</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">
+                            Exports use the filters above (run <strong>Apply filters</strong> first). Documents include branding, timestamp, and row count.
+                            Only Superadmin can download full registers.
+                        </p>
+                        <a href="{% url 'admin_export_students_pdf' %}?{{ request.GET.urlencode }}"
+                            class="btn btn-danger mb-2 mb-sm-0 mr-sm-2"><i class="fas fa-file-pdf"></i> Download PDF</a>
+                        <a href="{% url 'admin_export_students_csv' %}?{{ request.GET.urlencode }}"
+                            class="btn btn-outline-success mb-2 mb-sm-0 mr-sm-2"><i class="fas fa-file-excel"></i> Export Excel (CSV)</a>
+                        <a href="{% url 'admin_students_by_course' %}" class="btn btn-default mb-2 mb-sm-0">Students by course (enrollment rows)</a>
+                    </div>
+                </div>
+
                 <div class="mb-2">
-                    <span class="text-muted">{{ students|length }} student{{ students|length|pluralize }}</span>
+                    <span class="text-muted">{{ students|length }} student{{ students|length|pluralize }} shown</span>
                 </div>
                 <div class="card">
                     <div class="card-header">

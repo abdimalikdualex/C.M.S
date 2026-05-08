@@ -148,6 +148,26 @@ urlpatterns = [
         name="admin_students_by_course",
     ),
     path(
+        "admin/reports/students-list.pdf",
+        hod_views.admin_export_students_pdf,
+        name="admin_export_students_pdf",
+    ),
+    path(
+        "admin/reports/students-list.csv",
+        hod_views.admin_export_students_csv,
+        name="admin_export_students_csv",
+    ),
+    path(
+        "admin/reports/enrollments-list.pdf",
+        hod_views.admin_export_enrollments_pdf,
+        name="admin_export_enrollments_pdf",
+    ),
+    path(
+        "admin/reports/enrollments-list.csv",
+        hod_views.admin_export_enrollments_csv,
+        name="admin_export_enrollments_csv",
+    ),
+    path(
         "admin/hub-events/",
         hod_views.admin_hub_events,
         name="admin_hub_events",

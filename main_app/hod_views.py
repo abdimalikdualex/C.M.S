@@ -1,6 +1,8 @@
 import json
 import os
+import csv
 import requests
+from io import StringIO
 
 from django.conf import settings
 from django.contrib import messages
@@ -173,6 +175,100 @@ def admin_hub_event_toggle_publish(request, event_id):
     state = "published" if ev.is_published else "unpublished"
     messages.success(request, f"“{ev.title}” is now {state} on the student events page.")
     return redirect(reverse("admin_hub_events"))
+
+
+def admin_export_students_pdf(request):
+    """Superadmin: downloadable student register (filtered, branded PDF)."""
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .pdf_students_list import build_student_register_pdf
+    from .student_export_utils import describe_export_filters, get_students_for_export_list
+
+    students = get_students_for_export_list(request)
+    gb = (request.GET.get("group_by") or "").strip()
+    pdf_bytes = build_student_register_pdf(
+        students,
+        college_name=getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        hub_tagline=getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
+        college_location=getattr(settings, "COLLEGE_LOCATION", ""),
+        filters_description=describe_export_filters(request),
+        group_by=gb if gb in ("course", "session") else "",
+    )
+    fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
+def admin_export_students_csv(request):
+    """Superadmin: student register as UTF-8 CSV (Excel-friendly)."""
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .student_export_utils import get_students_for_export_list, student_row_cells
+
+    students = get_students_for_export_list(request)
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(
+        ["Reg No", "Full Name", "Phone", "Course", "Session", "Enrollment Date", "Fee Status"]
+    )
+    for st in students:
+        w.writerow(student_row_cells(st))
+    payload = "\ufeff" + buf.getvalue()
+    fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
+def admin_export_enrollments_pdf(request):
+    """Superadmin: enrollment-level register (matches Students by course filters)."""
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .pdf_students_list import build_enrollment_register_pdf
+    from .student_export_utils import describe_enrollment_export_filters, get_enrollments_for_export_list
+
+    enrollments = get_enrollments_for_export_list(request)
+    pdf_bytes = build_enrollment_register_pdf(
+        enrollments,
+        college_name=getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        hub_tagline=getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
+        college_location=getattr(settings, "COLLEGE_LOCATION", ""),
+        filters_description=describe_enrollment_export_filters(request),
+    )
+    fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
+def admin_export_enrollments_csv(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .student_export_utils import enrollment_row_cells, get_enrollments_for_export_list
+
+    enrollments = get_enrollments_for_export_list(request)
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(
+        [
+            "Reg No",
+            "Full Name",
+            "Phone",
+            "Course",
+            "Session",
+            "Start Date",
+            "Enrollment Status",
+            "Fee Status",
+        ]
+    )
+    for enr in enrollments:
+        w.writerow(enrollment_row_cells(enr))
+    payload = "\ufeff" + buf.getvalue()
+    fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
 
 
 def admin_mark_enrollment_complete(request, enrollment_id):
@@ -461,6 +557,9 @@ def manage_student(request):
     only_new_today = request.GET.get("new_today") == "1"
     raw_session = (request.GET.get("session") or "").strip()
     session_id = int(raw_session) if raw_session.isdigit() else None
+    raw_course = (request.GET.get("course") or "").strip()
+    course_id = int(raw_course) if raw_course.isdigit() else None
+    raw_enrollment_status = (request.GET.get("enrollment_status") or "").strip()
     students = CustomUser.objects.filter(user_type=3)
     if q:
         students = students.filter(
@@ -473,6 +572,10 @@ def manage_student(request):
         )
     if session_id is not None:
         students = students.filter(student__session_id=session_id)
+    if course_id is not None:
+        students = students.filter(student__course_id=course_id)
+    if raw_enrollment_status in ("active", "completed", "cancelled"):
+        students = students.filter(student__enrollments__status=raw_enrollment_status).distinct()
     if only_new_today:
         students = students.filter(student__enrollment_date=timezone.localdate())
     if only_pending:
@@ -484,7 +587,10 @@ def manage_student(request):
         'only_pending': only_pending,
         'only_new_today': only_new_today,
         'filter_session_id': raw_session,
+        'filter_course_id': raw_course,
+        'filter_enrollment_status': raw_enrollment_status,
         'all_sessions': Session.objects.latest_first(),
+        'all_courses': Course.objects.all().order_by("name"),
     }
     return render(request, "hod_template/manage_student.html", context)
 
