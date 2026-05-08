@@ -1,0 +1,60 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="card card-dark">
+      <div class="card-header"><h3 class="card-title mb-0">{{ page_title }}</h3></div>
+      <div class="card-body p-0 table-responsive">
+        <table class="table table-sm table-bordered table-hover mb-0">
+          <thead class="thead-light">
+            <tr>
+              <th>Event</th>
+              <th>When</th>
+              <th>Where / link</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            {% with ev=row.event %}
+            <tr class="{% if row.past %}table-secondary{% endif %}">
+              <td>
+                <strong>{{ ev.title }}</strong>
+                <br><span class="badge badge-info">{{ ev.get_event_kind_display }}</span>
+                {% if ev.description %}<div class="small text-muted mt-1">{{ ev.description|truncatewords:40 }}</div>{% endif %}
+              </td>
+              <td>
+                {{ ev.starts_at|date:"M j, Y H:i" }}
+                {% if ev.ends_at %}<br><small class="text-muted">to {{ ev.ends_at|date:"M j, Y H:i" }}</small>{% endif %}
+              </td>
+              <td>{{ ev.location_or_link|default:"—"|truncatechars:40 }}</td>
+              <td>
+                {% if row.past %}
+                  <span class="text-muted small">Ended</span>
+                {% elif row.registered %}
+                  <span class="badge badge-success">Registered</span>
+                {% elif row.full %}
+                  <span class="badge badge-secondary">Full</span>
+                {% else %}
+                <form method="post" class="mb-0">
+                  {% csrf_token %}
+                  <input type="hidden" name="event_id" value="{{ ev.id }}" />
+                  <button type="submit" class="btn btn-sm btn-primary">Register</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted">No published events yet. Check back soon.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="text-muted small mt-2">Bootcamps, workshops, and community sessions — inspired by open tech-hub culture.</p>
+  </div>
+</section>
+{% endblock content %}

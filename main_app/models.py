@@ -184,6 +184,27 @@ class Course(models.Model):
     monthly_fee = models.PositiveIntegerField(default=0)
     full_fee = models.PositiveIntegerField(default=0)
     level = models.CharField(max_length=20, choices=LANGUAGE_LEVEL, default="", blank=True)
+    SKILLS_TRACK = (
+        ("", "General ICT / mixed"),
+        ("software_dev", "Software Development"),
+        ("web", "Web Development"),
+        ("graphic", "Graphic Design"),
+        ("cyber", "Cybersecurity"),
+        ("networking", "Networking"),
+        ("data", "Data Analysis"),
+        ("ai", "AI & Prompt Engineering"),
+        ("marketing", "Digital Marketing"),
+        ("video", "Video Editing"),
+        ("va", "Virtual Assistant Skills"),
+        ("freelance", "Freelancing Skills"),
+    )
+    skills_track = models.CharField(
+        max_length=24,
+        choices=SKILLS_TRACK,
+        default="",
+        blank=True,
+        help_text="Primary digital skills lane for this programme (hub catalog).",
+    )
     rolling_intake = models.BooleanField(default=True)
     intake_start = models.DateField(null=True, blank=True)
     intake_end = models.DateField(null=True, blank=True)
@@ -282,6 +303,11 @@ class Enrollment(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="assigned_enrollments",
+    )
+    completed_on = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date marked complete (certificate / cohort completion).",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -434,6 +460,18 @@ class Assessment(models.Model):
         help_text="Optional intake/session scope.",
     )
     due_date = models.DateTimeField()
+    TASK_KIND = (
+        ("practical", "Practical / lab"),
+        ("homework", "Homework / exercise"),
+        ("project", "Project"),
+        ("capstone", "Capstone / portfolio piece"),
+    )
+    task_kind = models.CharField(
+        max_length=20,
+        choices=TASK_KIND,
+        default="practical",
+        help_text="Type of hands-on work (hub uses practicals & projects, not exam-heavy flows).",
+    )
     file = models.FileField(upload_to="assessments/instructions/", blank=True, null=True)
     closes_at_deadline = models.BooleanField(
         default=False,
@@ -523,6 +561,96 @@ class EnrollmentFeeAudit(models.Model):
 
     def __str__(self):
         return f"Fee {self.previous_fee} → {self.new_fee} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class StudentHubProfile(models.Model):
+    """Freelancing readiness, portfolio links, and job-prep artifacts (Ajira-style)."""
+
+    student = models.OneToOneField(Student, on_delete=models.CASCADE, related_name="hub_profile")
+    portfolio_url = models.URLField(max_length=500, blank=True, default="")
+    github_url = models.URLField(max_length=500, blank=True, default="")
+    linkedin_url = models.URLField(max_length=500, blank=True, default="")
+    upwork_url = models.URLField(max_length=500, blank=True, default="")
+    fiverr_url = models.URLField(max_length=500, blank=True, default="")
+    cv_file = models.FileField(upload_to="hub/cv/", blank=True, null=True)
+    skill_badges = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Comma-separated skills e.g. HTML, Python, Canva.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Hub profile · {self.student}"
+
+
+class HubEvent(models.Model):
+    """Lightweight community programming (workshops, bootcamps, hackathons)."""
+
+    EVENT_KIND = (
+        ("bootcamp", "Bootcamp"),
+        ("workshop", "Workshop"),
+        ("talk", "Tech talk"),
+        ("hackathon", "Hackathon"),
+        ("other", "Other community event"),
+    )
+    title = models.CharField(max_length=200)
+    event_kind = models.CharField(max_length=20, choices=EVENT_KIND, default="workshop")
+    description = models.TextField(blank=True, default="")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField(null=True, blank=True)
+    location_or_link = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Room name, campus, or online meeting URL.",
+    )
+    max_attendees = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional cap; leave empty for open attendance.",
+    )
+    is_published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["starts_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.get_event_kind_display()})"
+
+
+class HubEventRegistration(models.Model):
+    event = models.ForeignKey(HubEvent, on_delete=models.CASCADE, related_name="registrations")
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="hub_event_regs")
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["event", "student"], name="uniq_hub_event_student"),
+        ]
+        ordering = ["-registered_at"]
+
+
+class MentorNote(models.Model):
+    """Short mentor guidance tied to an enrollment (instructor → learner)."""
+
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="mentor_notes")
+    author = models.ForeignKey(
+        Staff,
+        on_delete=models.CASCADE,
+        related_name="mentor_notes_authored",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Mentor note #{self.pk}"
 
 
 class Payment(models.Model):

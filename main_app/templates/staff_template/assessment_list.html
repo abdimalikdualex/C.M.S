@@ -6,7 +6,7 @@
   <div class="container-fluid">
     <div class="row mb-2">
       <div class="col-md-12">
-        <a href="{% url 'staff_assessment_create' %}" class="btn btn-primary btn-sm">Create assessment</a>
+        <a href="{% url 'staff_assessment_create' %}" class="btn btn-primary btn-sm">Create practical / assignment</a>
       </div>
     </div>
     <div class="card card-dark">
@@ -16,6 +16,7 @@
           <thead class="thead-light">
             <tr>
               <th>Title</th>
+              <th>Type</th>
               <th>Course</th>
               <th>Due</th>
               <th>Submissions</th>
@@ -26,6 +27,7 @@
             {% for a in assessments %}
             <tr>
               <td>{{ a.title }}</td>
+              <td><span class="badge badge-secondary">{{ a.get_task_kind_display }}</span></td>
               <td>{{ a.course.name }}</td>
               <td>{{ a.due_date|date:"Y-m-d H:i" }}</td>
               <td>{{ a.sub_cnt }}</td>
@@ -35,7 +37,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted">No assessments yet.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">No practicals yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

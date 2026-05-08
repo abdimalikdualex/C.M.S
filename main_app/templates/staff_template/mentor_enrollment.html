@@ -1,0 +1,46 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="mb-2">
+      <a href="{% url 'staff_my_classes' %}" class="btn btn-default btn-sm">← Back to classes</a>
+    </div>
+    <div class="card card-dark mb-3">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Mentor notes</h3>
+        <p class="mb-0 small text-muted">{{ enrollment.student.admin.get_full_name }} — {{ enrollment.course.name }}</p>
+      </div>
+      <div class="card-body">
+        {% for n in notes %}
+        <div class="border rounded p-2 mb-2">
+          <div class="small text-muted">{{ n.created_at|date:"Y-m-d H:i" }} · {{ n.author.admin.get_full_name }}</div>
+          <div>{{ n.body|linebreaks }}</div>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">No mentor notes yet for this learner.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card card-primary">
+      <div class="card-header"><h3 class="card-title mb-0">Add guidance</h3></div>
+      <form method="post">
+        {% csrf_token %}
+        <div class="card-body">
+          {% for field in form %}
+          <div class="form-group">
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="card-footer">
+          <button type="submit" class="btn btn-primary">Post note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock content %}

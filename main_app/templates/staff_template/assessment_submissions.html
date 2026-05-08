@@ -11,7 +11,7 @@
     <div class="card card-dark">
       <div class="card-header">
         <h3 class="card-title">{{ assessment.title }}</h3>
-        <p class="mb-0 small text-muted">Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
+        <p class="mb-0 small text-muted"><span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span> · Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
       </div>
       <div class="card-body">
         {% if assessment.file %}

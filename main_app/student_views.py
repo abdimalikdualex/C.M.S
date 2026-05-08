@@ -262,7 +262,7 @@ def student_assessment_list(request):
         request,
         "student_template/student_assessments_list.html",
         {
-            "page_title": "My assessments",
+            "page_title": "Practicals & projects",
             "rows": rows,
             "now": now,
         },

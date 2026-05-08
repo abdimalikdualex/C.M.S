@@ -11,6 +11,7 @@
           <thead class="thead-light">
             <tr>
               <th>Title</th>
+              <th>Type</th>
               <th>Course</th>
               <th>Due</th>
               <th>Status</th>
@@ -21,6 +22,7 @@
             {% for row in rows %}
             <tr>
               <td>{{ row.assessment.title }}</td>
+              <td><span class="badge badge-secondary">{{ row.assessment.get_task_kind_display }}</span></td>
               <td>{{ row.assessment.course.name }}</td>
               <td>{{ row.assessment.due_date|date:"Y-m-d H:i" }}</td>
               <td>
@@ -37,7 +39,7 @@
               <td><a href="{% url 'student_assessment_detail' row.assessment.pk %}" class="btn btn-outline-primary btn-sm">Open</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted">No assessments for your courses.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">No practicals or projects for your programmes yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

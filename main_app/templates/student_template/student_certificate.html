@@ -1,0 +1,45 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content certificate-print">
+  <div class="container-fluid">
+    <div class="card card-light">
+      <div class="card-body text-center py-5" id="certificate-body">
+        <p class="text-uppercase text-muted mb-1" style="letter-spacing: 0.15em;">{{ college_name }}</p>
+        <p class="text-muted small mb-4">{{ hub_tagline }}</p>
+        <h2 class="mb-4">Certificate of completion</h2>
+        <p class="lead mb-1">This certifies that</p>
+        <h3 class="mb-4">
+          {% if enrollment.student.admin.full_name %}
+            {{ enrollment.student.admin.full_name }}
+          {% else %}
+            {{ enrollment.student.admin.get_full_name }}
+          {% endif %}
+        </h3>
+        <p class="mb-1">has successfully completed practical training in</p>
+        <h4 class="text-primary mb-4">{{ enrollment.course.name }}</h4>
+        {% if enrollment.course.skills_track %}
+        <p class="mb-4"><span class="badge badge-secondary">{{ enrollment.course.get_skills_track_display }}</span></p>
+        {% endif %}
+        <p class="mb-1">Intake: {{ enrollment.session.intake_label }}</p>
+        {% if enrollment.completed_on %}
+        <p>Completed on {{ enrollment.completed_on|date:"F j, Y" }}.</p>
+        {% endif %}
+        <hr class="my-5" style="max-width: 320px; margin-left: auto; margin-right: auto;">
+        <p class="small text-muted mb-0">ELEVATE DIGITAL HUB — practical ICT &amp; digital skills</p>
+      </div>
+      <div class="card-footer text-center no-print">
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
+        <a href="{% url 'student_certificate_pdf' enrollment.id %}" class="btn btn-outline-primary">Download PDF</a>
+        <a href="{% url 'student_growth_hub' %}" class="btn btn-default">Back to growth hub</a>
+      </div>
+    </div>
+  </div>
+</section>
+<style media="print">
+  .no-print, .main-header, .main-sidebar, .content-header { display: none !important; }
+  .certificate-print .card { border: none !important; box-shadow: none !important; }
+  body { background: #fff !important; }
+</style>
+{% endblock content %}

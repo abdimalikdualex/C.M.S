@@ -22,6 +22,7 @@ from . import (
     billing_views,
     director_views,
     hod_views,
+    hub_views,
     staff_views,
     student_views,
     views,
@@ -147,9 +148,24 @@ urlpatterns = [
         name="admin_students_by_course",
     ),
     path(
+        "admin/hub-events/",
+        hod_views.admin_hub_events,
+        name="admin_hub_events",
+    ),
+    path(
+        "admin/hub-events/<int:event_id>/toggle-publish/",
+        hod_views.admin_hub_event_toggle_publish,
+        name="admin_hub_event_toggle_publish",
+    ),
+    path(
         "admin/assessments/",
         hod_views.admin_assessments,
         name="admin_assessments",
+    ),
+    path(
+        "admin/enrollment/<int:enrollment_id>/status/",
+        hod_views.admin_mark_enrollment_complete,
+        name="admin_mark_enrollment_complete",
     ),
     path("course/manage/", hod_views.manage_course, name='manage_course'),
     path("subject/manage/", hod_views.manage_subject, name='manage_subject'),
@@ -248,6 +264,11 @@ urlpatterns = [
         name="staff_assessment_submissions",
     ),
     path(
+        "staff/mentor/enrollment/<int:enrollment_id>/",
+        assessment_views.instructor_mentor_enrollment,
+        name="staff_mentor_enrollment",
+    ),
+    path(
         "staff/assessments/<int:pk>/submissions/<int:sub_id>/grade/",
         assessment_views.instructor_grade_submission,
         name="staff_assessment_grade",
@@ -279,6 +300,26 @@ urlpatterns = [
          name="student_view_notification"),
     path('student/view/result/', student_views.student_view_result,
          name='student_view_result'),
+    path(
+        "student/hub/",
+        hub_views.student_growth_hub,
+        name="student_growth_hub",
+    ),
+    path(
+        "student/hub/events/",
+        hub_views.student_hub_events,
+        name="student_hub_events",
+    ),
+    path(
+        "student/certificate/<int:enrollment_id>/",
+        hub_views.student_certificate,
+        name="student_certificate",
+    ),
+    path(
+        "student/certificate/<int:enrollment_id>/download.pdf",
+        hub_views.student_certificate_pdf,
+        name="student_certificate_pdf",
+    ),
     path(
         "student/assessments/",
         student_views.student_assessment_list,

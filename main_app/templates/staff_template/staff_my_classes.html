@@ -18,18 +18,20 @@
               <th>Student</th>
               <th>Student ID</th>
               <th>Phone</th>
+              <th>Mentor</th>
             </tr>
           </thead>
           <tbody>
-            {% for s in cls.students %}
+            {% for row in cls.student_rows %}
             <tr>
               <td>{{ forloop.counter }}</td>
-              <td>{{ s.admin.get_full_name }}</td>
-              <td>{{ s.student_id }}</td>
-              <td>{{ s.admin.phone_number|default:'—' }}</td>
+              <td>{{ row.student.admin.get_full_name }}</td>
+              <td>{{ row.student.student_id }}</td>
+              <td>{{ row.student.admin.phone_number|default:'—' }}</td>
+              <td><a href="{% url 'staff_mentor_enrollment' row.enrollment.id %}" class="btn btn-outline-info btn-sm">Mentor notes</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="text-center text-muted">No active students enrolled in this class.</td></tr>
+            <tr><td colspan="5" class="text-center text-muted">No active students enrolled in this class.</td></tr>
             {% endfor %}
           </tbody>
         </table>

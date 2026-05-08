@@ -286,11 +286,14 @@ def staff_my_classes(request):
             .select_related("student__admin")
             .order_by("student__admin__full_name", "student__admin__first_name", "student__student_id")
         )
+        student_rows = [
+            {"student": e.student, "enrollment": e} for e in enrollments
+        ]
         classes.append(
             {
                 "subject": subject,
                 "course": subject.course,
-                "students": [e.student for e in enrollments],
+                "student_rows": student_rows,
                 "student_count": enrollments.count(),
             }
         )

@@ -1,0 +1,163 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-lg-4 col-md-6 mb-3">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3>{{ attendance_pct }}%</h3>
+            <p>Attendance (sessions marked)</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-6 mb-3">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3>{{ overall_practical_pct }}%</h3>
+            <p>Practicals / assignments submitted</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-6 mb-3">
+        <div class="small-box bg-secondary">
+          <div class="inner">
+            <h3>{{ completion_approx }}%</h3>
+            <p>Approx. hub progress <small class="d-block font-weight-normal">(attendance + practicals)</small></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-7 mb-3">
+        <div class="card card-dark">
+          <div class="card-header"><h3 class="card-title mb-0">Programmes &amp; progress</h3></div>
+          <div class="card-body p-0 table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="thead-light">
+                <tr>
+                  <th>Course / track</th>
+                  <th>Level</th>
+                  <th>Status</th>
+                  <th>Practicals</th>
+                  <th>Mentor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in enrollment_rows %}
+                {% with e=row.enrollment %}
+                <tr>
+                  <td>
+                    <strong>{{ e.course.name }}</strong>
+                    {% if e.course.skills_track %}
+                    <br><span class="badge badge-light">{{ e.course.get_skills_track_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{% if e.enrollment_level %}{{ e.get_enrollment_level_display }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                  <td>{{ e.get_status_display }}{% if e.completed_on %}<br><small class="text-muted">{{ e.completed_on }}</small>{% endif %}</td>
+                  <td>
+                    {{ row.practical_done }}/{{ row.practical_total }}
+                    <div class="progress progress-xs">
+                      <div class="progress-bar bg-success" role="progressbar" style="width: {{ row.practical_pct }}%"></div>
+                    </div>
+                  </td>
+                  <td>
+                    {% if row.mentor_notes %}
+                      <ul class="list-unstyled small mb-0">
+                        {% for n in row.mentor_notes %}
+                        <li class="mb-1"><span class="text-muted">{{ n.created_at|date:"M j" }} —</span> {{ n.body|truncatewords:24 }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <span class="text-muted small">Notes appear when your mentor posts guidance.</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted">No enrollments yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {% if completed_enrollments %}
+        <div class="card card-outline card-success mt-3">
+          <div class="card-header"><h3 class="card-title mb-0">Completed programmes</h3></div>
+          <div class="card-body">
+            <ul class="list-unstyled mb-0">
+              {% for e in completed_enrollments %}
+              <li class="mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span>{{ e.course.name }}{% if e.completed_on %} <small class="text-muted">({{ e.completed_on }})</small>{% endif %}</span>
+                <span class="text-nowrap">
+                  <a href="{% url 'student_certificate' e.id %}" class="btn btn-sm btn-outline-success" target="_blank" rel="noopener">View</a>
+                  <a href="{% url 'student_certificate_pdf' e.id %}" class="btn btn-sm btn-outline-primary">PDF</a>
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="col-lg-5 mb-3">
+        <div class="card card-primary">
+          <div class="card-header"><h3 class="card-title mb-0">Freelance &amp; job-readiness profile</h3></div>
+          <form method="post" enctype="multipart/form-data" class="mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_hub_profile" />
+            <div class="card-body">
+              {% if hub_form.non_field_errors %}
+              <div class="alert alert-danger">{{ hub_form.non_field_errors }}</div>
+              {% endif %}
+              {% for field in hub_form %}
+              <div class="form-group">
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+              </div>
+              {% endfor %}
+              {% if skill_badges_list %}
+              <p class="mb-1"><strong>Skill badges</strong></p>
+              <p>
+                {% for b in skill_badges_list %}
+                <span class="badge badge-info mr-1">{{ b }}</span>
+                {% endfor %}
+              </p>
+              {% endif %}
+            </div>
+            <div class="card-footer">
+              <button type="submit" class="btn btn-primary btn-block">Save profile</button>
+            </div>
+          </form>
+        </div>
+
+        {% if upcoming_events %}
+        <div class="card card-secondary mt-3">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">Upcoming hub events</h3>
+            <a href="{% url 'student_hub_events' %}" class="btn btn-sm btn-light">All events</a>
+          </div>
+          <ul class="list-group list-group-flush">
+            {% for ev in upcoming_events %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span><strong>{{ ev.title }}</strong><br><small class="text-muted">{{ ev.starts_at|date:"M j, Y H:i" }} · {{ ev.get_event_kind_display }}</small></span>
+              {% if ev.id in registered_event_ids %}
+              <span class="badge badge-success">Registered</span>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}

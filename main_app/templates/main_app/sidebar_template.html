@@ -223,6 +223,14 @@
                         <p>Assessments overview</p>
                     </a>
                 </li>
+                <li class="nav-item">
+                    {% url 'admin_hub_events' as admin_hub_events %}
+                    <a href="{{ admin_hub_events }}"
+                        class="nav-link {% if request.resolver_match.url_name == 'admin_hub_events' or request.resolver_match.url_name == 'admin_hub_event_add' %} active {% endif %}">
+                        <i class="nav-icon fas fa-calendar-alt"></i>
+                        <p>Hub events &amp; workshops</p>
+                    </a>
+                </li>
 
                 <li class="nav-item has-treeview">
                     <a href="#" class="nav-link">
@@ -544,6 +552,22 @@
                                             </a>
                                         </li>
                                         <li class="nav-item">
+                                            {% url 'student_growth_hub' as student_growth_hub %}
+                                            <a href="{{ student_growth_hub }}"
+                                                class="nav-link {% if request.resolver_match.url_name == 'student_growth_hub' or request.resolver_match.url_name == 'student_certificate' or request.resolver_match.url_name == 'student_certificate_pdf' %} active {% endif %}">
+                                                <i class="nav-icon fas fa-chart-line"></i>
+                                                <p>Growth hub</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'student_hub_events' as student_hub_events %}
+                                            <a href="{{ student_hub_events }}"
+                                                class="nav-link {% if student_hub_events == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-users"></i>
+                                                <p>Events &amp; workshops</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
                                             <a href="{% url 'active_sessions' %}" class="nav-link {% if request.resolver_match.url_name == 'active_sessions' %} active {% endif %}">
                                                 <i class="nav-icon fas fa-calendar-check"></i>
                                                 <p>
@@ -566,7 +590,7 @@
                                             <a href="{{ student_assessment_list }}"
                                                 class="nav-link {% if request.resolver_match.url_name == 'student_assessment_list' or request.resolver_match.url_name == 'student_assessment_detail' %} active {% endif %}">
                                                 <i class="nav-icon fas fa-tasks"></i>
-                                                <p>My assessments</p>
+                                                <p>Practicals &amp; projects</p>
                                             </a>
                                         </li>
 

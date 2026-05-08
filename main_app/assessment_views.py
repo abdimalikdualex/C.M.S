@@ -7,8 +7,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import AssessmentForm, SubmissionGradeForm
-from .models import Assessment, Enrollment, Staff, Student, Submission
+from .forms import AssessmentForm, MentorNoteForm, SubmissionGradeForm
+from .models import Assessment, Enrollment, MentorNote, Staff, Student, Submission
 
 
 def _require_instructor(request):
@@ -38,7 +38,7 @@ def instructor_assessment_list(request):
     qs = Assessment.objects.filter(instructor=staff).select_related("course", "session")
     assessments = qs.annotate(sub_cnt=Count("submissions")).order_by("-due_date")
     context = {
-        "page_title": "Assessments",
+        "page_title": "Practicals & assignments",
         "assessments": assessments,
         "staff": staff,
     }
@@ -114,6 +114,50 @@ def instructor_assessment_submissions(request, pk):
         "now": now,
     }
     return render(request, "staff_template/assessment_submissions.html", context)
+
+
+def _staff_may_mentor_enrollment(staff, enrollment) -> bool:
+    if enrollment.assigned_instructor_id == staff.id:
+        return True
+    if staff.course_id and enrollment.course_id == staff.course_id:
+        return True
+    return False
+
+
+def instructor_mentor_enrollment(request, enrollment_id):
+    staff = _require_instructor(request)
+    if staff is None:
+        return redirect(reverse("staff_home"))
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("student__admin", "course"),
+        pk=enrollment_id,
+    )
+    if not _staff_may_mentor_enrollment(staff, enrollment):
+        messages.error(
+            request,
+            "You can only leave mentor notes for learners in your assigned course.",
+        )
+        return redirect(reverse("staff_my_classes"))
+    notes = enrollment.mentor_notes.select_related("author__admin").all()
+    form = MentorNoteForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        MentorNote.objects.create(
+            enrollment=enrollment,
+            author=staff,
+            body=form.cleaned_data["body"],
+        )
+        messages.success(request, "Mentor note saved.")
+        return redirect(reverse("staff_mentor_enrollment", kwargs={"enrollment_id": enrollment_id}))
+    return render(
+        request,
+        "staff_template/mentor_enrollment.html",
+        {
+            "page_title": f"Mentor notes — {enrollment.student}",
+            "enrollment": enrollment,
+            "notes": notes,
+            "form": form,
+        },
+    )
 
 
 def instructor_grade_submission(request, pk, sub_id):

@@ -295,6 +295,7 @@ class CourseForm(FormSettings):
             'monthly_fee',
             'full_fee',
             'level',
+            'skills_track',
             'rolling_intake',
             'intake_start',
             'intake_end',
@@ -697,6 +698,7 @@ class AssessmentForm(FormSettings):
         fields = [
             "title",
             "description",
+            "task_kind",
             "course",
             "session",
             "due_date",
@@ -730,6 +732,7 @@ class AssessmentForm(FormSettings):
             self.fields["course"].queryset = Course.objects.none()
         self.fields["session"].queryset = Session.objects.active_or_latest()
         self.fields["session"].empty_label = "Select intake/session"
+        self.fields["task_kind"].help_text = "Practical work type — labs, homework, projects, or capstones."
 
     def clean_course(self):
         course = self.cleaned_data.get("course")
@@ -746,3 +749,68 @@ class SubmissionGradeForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["grade"].widget.attrs.setdefault("class", "form-control")
+
+
+class StudentHubProfileForm(FormSettings):
+    class Meta:
+        model = StudentHubProfile
+        fields = [
+            "portfolio_url",
+            "github_url",
+            "linkedin_url",
+            "upwork_url",
+            "fiverr_url",
+            "cv_file",
+            "skill_badges",
+        ]
+
+
+class HubEventForm(FormSettings):
+    class Meta:
+        model = HubEvent
+        fields = [
+            "title",
+            "event_kind",
+            "description",
+            "starts_at",
+            "ends_at",
+            "location_or_link",
+            "max_attendees",
+            "is_published",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "starts_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local", "class": "form-control"},
+                format="%Y-%m-%dT%H:%M",
+            ),
+            "ends_at": forms.DateTimeInput(
+                attrs={"type": "datetime-local", "class": "form-control"},
+                format="%Y-%m-%dT%H:%M",
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in self.fields:
+            if name not in ("description", "is_published"):
+                self.fields[name].widget.attrs.setdefault("class", "form-control")
+        self.fields["is_published"].widget.attrs.setdefault("class", "form-check-input")
+        for fld in ("starts_at", "ends_at"):
+            self.fields[fld].input_formats = [
+                "%Y-%m-%dT%H:%M",
+                "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d %H:%M",
+            ]
+            if fld == "starts_at":
+                self.fields[fld].required = True
+            else:
+                self.fields[fld].required = False
+
+
+class MentorNoteForm(FormSettings):
+    class Meta:
+        model = MentorNote
+        fields = ["body"]
+        widgets = {"body": forms.Textarea(attrs={"rows": 4, "class": "form-control"})}

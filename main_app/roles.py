@@ -97,6 +97,7 @@ INSTRUCTOR_ONLY_STAFF_URLS = frozenset(
         "staff_assessment_detail",
         "staff_assessment_submissions",
         "staff_assessment_grade",
+        "staff_mentor_enrollment",
     }
 )
 

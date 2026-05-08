@@ -30,8 +30,10 @@
                                     <th>Course</th>
                                     <th>Session</th>
                                     <th>Status</th>
+                                    <th>Completed</th>
+                                    <th>Certificate / cohort</th>
                                     <th>Paid (KES)</th>
-                                    <th style="width: 30%;">Agreed total fee (KES){% if can_edit_enrollment_fees %} <span class="badge badge-light">Superadmin</span>{% endif %}</th>
+                                    <th style="width: 26%;">Agreed total fee (KES){% if can_edit_enrollment_fees %} <span class="badge badge-light">Superadmin</span>{% endif %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -40,6 +42,22 @@
                                     <td>{{ e.course.name|default:"--" }}</td>
                                     <td>{{ e.session.intake_label|default:"--" }}</td>
                                     <td>{{ e.get_status_display }}</td>
+                                    <td>{{ e.completed_on|default:"—" }}</td>
+                                    <td>
+                                        {% if e.status != 'completed' %}
+                                        <form method="post" action="{% url 'admin_mark_enrollment_complete' e.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="edit_student" />
+                                            <button type="submit" name="action" value="complete" class="btn btn-sm btn-success">Mark complete</button>
+                                        </form>
+                                        {% else %}
+                                        <form method="post" action="{% url 'admin_mark_enrollment_complete' e.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="edit_student" />
+                                            <button type="submit" name="action" value="reopen" class="btn btn-sm btn-outline-warning">Reopen</button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ e.amount_paid|kes_intcomma }}</td>
                                     <td>
                                         {% if can_edit_enrollment_fees %}

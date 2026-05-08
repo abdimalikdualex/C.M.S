@@ -130,6 +130,76 @@ def admin_assessments(request):
     )
 
 
+def _hub_superadmin(request) -> bool:
+    return str(getattr(request.user, "user_type", "") or "").strip() in ("1", "4")
+
+
+def admin_hub_events(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    events = HubEvent.objects.annotate(reg_count=Count("registrations")).order_by(
+        "-starts_at"
+    )
+    return render(
+        request,
+        "hod_template/admin_hub_events.html",
+        {"page_title": "Hub events & community", "events": events},
+    )
+
+
+def admin_hub_event_add(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    form = HubEventForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Event created.")
+        return redirect(reverse("admin_hub_events"))
+    return render(
+        request,
+        "hod_template/admin_hub_event_form.html",
+        {"page_title": "Add hub event", "form": form},
+    )
+
+
+def admin_hub_event_toggle_publish(request, event_id):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    if request.method != "POST":
+        return redirect(reverse("admin_hub_events"))
+    ev = get_object_or_404(HubEvent, pk=event_id)
+    ev.is_published = not ev.is_published
+    ev.save(update_fields=["is_published", "updated_at"])
+    state = "published" if ev.is_published else "unpublished"
+    messages.success(request, f"“{ev.title}” is now {state} on the student events page.")
+    return redirect(reverse("admin_hub_events"))
+
+
+def admin_mark_enrollment_complete(request, enrollment_id):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    enr = get_object_or_404(Enrollment, pk=enrollment_id)
+    if request.method == "POST":
+        act = (request.POST.get("action") or "").strip()
+        if act == "complete":
+            enr.status = "completed"
+            enr.completed_on = timezone.localdate()
+            enr.save(update_fields=["status", "completed_on", "updated_at"])
+            messages.success(
+                request,
+                f"Marked {enr.course.name} as completed for this learner.",
+            )
+        elif act == "reopen":
+            enr.status = "active"
+            enr.completed_on = None
+            enr.save(update_fields=["status", "completed_on", "updated_at"])
+            messages.success(request, "Enrollment reopened as active.")
+    nxt = request.POST.get("next")
+    if nxt == "edit_student":
+        return redirect(reverse("edit_student", kwargs={"student_id": enr.student_id}))
+    return redirect(reverse("manage_student"))
+
+
 def add_staff(request):
     form = StaffForm(request.POST or None, request.FILES or None)
     context = {'form': form, 'page_title': 'Add Staff'}

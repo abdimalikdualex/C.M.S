@@ -38,7 +38,7 @@ class LoginCheckMiddleWare(MiddlewareMixin):
 
         # Superadmin (and legacy Director rows folded in).
         if ut in ("1", "4"):
-            if modulename == "main_app.student_views":
+            if modulename in ("main_app.student_views", "main_app.hub_views"):
                 return redirect(reverse("superadmin_dashboard"))
             return None
 
@@ -52,7 +52,11 @@ class LoginCheckMiddleWare(MiddlewareMixin):
 
         # Instructor (and any legacy admission/finance staff folded in).
         if ut == "2":
-            if modulename in ("main_app.billing_views", "main_app.student_views"):
+            if modulename in (
+                "main_app.billing_views",
+                "main_app.student_views",
+                "main_app.hub_views",
+            ):
                 return redirect(reverse("instructor_dashboard"))
             if modulename == "main_app.hod_views":
                 return redirect(reverse("instructor_dashboard"))
