@@ -2,6 +2,9 @@
 
 WHOLE_KES_MSG = "Only whole-number fee amounts are allowed."
 
+# Shown when Superadmin corrects enrollment fee from Fees & Payments / Edit Student.
+FEE_EDIT_VALIDATION_MSG = "Please enter a valid whole-number fee amount."
+
 
 def quantize_kes(value) -> int:
     """Normalize monetary value to whole KES integer (internal/display only)."""

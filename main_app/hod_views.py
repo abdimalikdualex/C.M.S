@@ -4,6 +4,7 @@ import requests
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.db.models import Count, Q, Sum
@@ -16,9 +17,10 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import UpdateView
 
+from .access import user_can_edit_assigned_course_fees
 from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
-from .money import WHOLE_KES_MSG, parse_post_whole_kes
+from .money import FEE_EDIT_VALIDATION_MSG, parse_post_whole_kes
 from .models import *
 from .sms_notifications import notify_admission_confirmed
 
@@ -501,6 +503,7 @@ def edit_student(request, student_id):
         'student_id': student_id,
         'page_title': 'Edit Student',
         'enrollments': enrollments,
+        'can_edit_enrollment_fees': user_can_edit_assigned_course_fees(request.user),
     }
     if request.method == 'POST':
         if form.is_valid():
@@ -540,47 +543,66 @@ def edit_student(request, student_id):
                 messages.error(request, "Could Not Update " + str(e))
         else:
             messages.error(request, "Please Fill Form Properly!")
-    else:
-        return render(request, "hod_template/edit_student_template.html", context)
+    return render(request, "hod_template/edit_student_template.html", context)
+
+
+def _redirect_after_enrollment_fee_edit(request, student_id):
+    nxt = (request.POST.get("next") or "").strip()
+    if nxt == "fee_statement":
+        return redirect(reverse("student_fee_statement", args=[student_id]))
+    return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
 
 
 def edit_enrollment_fee(request, enrollment_id):
-    """Per-enrollment manual fee override; audit-logged."""
-    enrollment = get_object_or_404(Enrollment.objects.select_related("student"), id=enrollment_id)
+    """Superadmin only: correct agreed enrollment fee; payments unchanged; audit logged."""
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("student", "course"), id=enrollment_id
+    )
     student_id = enrollment.student_id
     if request.method != "POST":
         return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    if not user_can_edit_assigned_course_fees(request.user):
+        raise PermissionDenied
     raw = (request.POST.get("total_fee") or "").strip()
     try:
         new_fee = parse_post_whole_kes(raw)
     except ValueError:
-        messages.error(request, WHOLE_KES_MSG)
-        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+        messages.error(request, FEE_EDIT_VALIDATION_MSG)
+        return _redirect_after_enrollment_fee_edit(request, student_id)
     paid = int(enrollment.amount_paid or 0)
     if new_fee < paid:
         messages.error(
             request,
             f"Agreed total fee ({new_fee}) cannot be less than what has already been paid ({paid}).",
         )
-        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
-    if new_fee == int(enrollment.total_fee or 0):
-        messages.info(request, "No change; agreed total fee is already that value.")
-        return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+        return _redirect_after_enrollment_fee_edit(request, student_id)
     old_fee = int(enrollment.total_fee or 0)
+    if new_fee == old_fee:
+        messages.info(request, "No change; agreed total fee is already that value.")
+        return _redirect_after_enrollment_fee_edit(request, student_id)
     enrollment.total_fee = new_fee
     enrollment.save(update_fields=["total_fee"])
+    EnrollmentFeeAudit.objects.create(
+        enrollment=enrollment,
+        previous_fee=old_fee,
+        new_fee=new_fee,
+        edited_by=request.user,
+    )
     AuditLog.objects.create(
         action="enrollment_fee_updated",
         detail=(
             f"Agreed total fee for {enrollment.student.student_id} on "
             f"{enrollment.course.name if enrollment.course else 'N/A'} changed "
-            f"from KES {old_fee} to KES {new_fee}."
+            f"from KES {old_fee:,} to KES {new_fee:,}."
         ),
         student=enrollment.student,
         user=request.user,
     )
-    messages.success(request, "Agreed total fee updated.")
-    return redirect(reverse("edit_student", kwargs={"student_id": student_id}))
+    messages.success(
+        request,
+        "Assigned fee updated. Balance is the updated fee minus payments already on file.",
+    )
+    return _redirect_after_enrollment_fee_edit(request, student_id)
 
 
 def edit_course(request, course_id):

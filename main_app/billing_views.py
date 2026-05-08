@@ -6,6 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 
+from .access import user_can_edit_assigned_course_fees
 from .models import Enrollment, Payment, Staff, Student
 from .pdf_fees import build_fee_statement_pdf, build_payment_receipt_pdf
 
@@ -99,6 +100,7 @@ def _render_fee_statement(request, student: Student):
             "total_due": total_due,
             "total_paid": paid,
             "balance": balance,
+            "can_edit_enrollment_fees": user_can_edit_assigned_course_fees(request.user),
         }
     )
     return render(request, "main_app/fee_statement.html", ctx)

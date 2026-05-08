@@ -496,6 +496,35 @@ class AuditLog(models.Model):
         return f"{self.action} @ {self.created_at:%Y-%m-%d %H:%M}"
 
 
+class EnrollmentFeeAudit(models.Model):
+    """
+    Immutable trail when a Superadmin corrects an enrollment agreed fee.
+    Balance remains computed as total_fee minus existing payments (not stored here).
+    """
+
+    enrollment = models.ForeignKey(
+        "Enrollment",
+        on_delete=models.CASCADE,
+        related_name="fee_audit_entries",
+    )
+    previous_fee = models.PositiveIntegerField()
+    new_fee = models.PositiveIntegerField()
+    edited_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="enrollment_fee_edits",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Fee {self.previous_fee} → {self.new_fee} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
 class Payment(models.Model):
     MODE = (("cash", "Cash"), ("mpesa", "Mobile Money (M-Pesa)"))
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="payments")

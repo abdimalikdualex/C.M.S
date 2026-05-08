@@ -31,7 +31,7 @@
                                     <th>Session</th>
                                     <th>Status</th>
                                     <th>Paid (KES)</th>
-                                    <th style="width: 30%;">Agreed total fee (KES)</th>
+                                    <th style="width: 30%;">Agreed total fee (KES){% if can_edit_enrollment_fees %} <span class="badge badge-light">Superadmin</span>{% endif %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -42,14 +42,16 @@
                                     <td>{{ e.get_status_display }}</td>
                                     <td>{{ e.amount_paid|kes_intcomma }}</td>
                                     <td>
+                                        {% if can_edit_enrollment_fees %}
                                         <form method="POST" action="{% url 'edit_enrollment_fee' e.id %}" class="form-inline">
                                             {% csrf_token %}
-                                            <input type="number" min="0" step="1" name="total_fee" value="{{ e.total_fee }}" class="form-control form-control-sm mr-2" style="max-width: 140px;" required>
-                                            <button type="submit" class="btn btn-sm btn-primary"
-                                                    onclick="return confirm('Update agreed total fee for this enrollment?');">
-                                                Save
-                                            </button>
+                                            <input type="hidden" name="next" value="edit_student">
+                                            <input type="number" min="0" step="1" name="total_fee" value="{{ e.total_fee }}" class="form-control form-control-sm mr-2" style="max-width: 140px;" required aria-label="Agreed total fee KES">
+                                            <button type="submit" class="btn btn-sm btn-primary">Update fee</button>
                                         </form>
+                                        {% else %}
+                                        <strong>{{ e.total_fee|kes_intcomma }}</strong>
+                                        {% endif %}
                                         <small class="text-muted d-block mt-1">Balance: {{ e.balance_due|kes_intcomma }}</small>
                                     </td>
                                 </tr>
