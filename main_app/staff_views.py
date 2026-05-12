@@ -61,7 +61,7 @@ def _require_staff_role(request, allowed_roles):
 
 def _instructor_sessions(staff):
     """Relevant sessions for instructor's assigned subjects, latest first."""
-    subjects = Subject.objects.filter(staff=staff).values_list("course_id", flat=True)
+    subjects = Subject.objects.filter(staff=staff, is_active=True).values_list("course_id", flat=True)
     qs = Session.objects.filter(enrollments__course_id__in=subjects).distinct().latest_first()
     if qs.exists():
         return qs
@@ -249,7 +249,7 @@ def staff_home(request):
         )
         course_label = str(staff.course) if staff.course_id else ""
     total_leave = LeaveReportStaff.objects.filter(staff=staff).count()
-    subjects = Subject.objects.filter(staff=staff)
+    subjects = Subject.objects.filter(staff=staff, is_active=True)
     total_subject = subjects.count()
     attendance_list = Attendance.objects.filter(subject__in=subjects)
     total_attendance = attendance_list.count()
@@ -274,7 +274,7 @@ def staff_home(request):
 @require_instructor
 def staff_take_attendance(request):
     staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff_id=staff).select_related("course")
+    subjects = Subject.objects.filter(staff_id=staff, is_active=True).select_related("course")
     sessions = _instructor_sessions(staff)
     context = {
         'subjects': subjects,
@@ -293,7 +293,7 @@ def staff_my_classes(request):
         return redirect(reverse("staff_home"))
 
     subjects = (
-        Subject.objects.filter(staff=staff)
+        Subject.objects.filter(staff=staff, is_active=True)
         .select_related("course")
         .order_by("course__name", "name")
     )
@@ -335,6 +335,8 @@ def get_students(request):
     session_id = request.POST.get('session')
     try:
         subject = get_object_or_404(Subject, id=subject_id)
+        if not subject.is_active:
+            return HttpResponse("[]", content_type="application/json")
         session = get_object_or_404(Session, id=session_id) if session_id else None
         staff = get_object_or_404(Staff, admin=request.user)
         if subject.staff_id != staff.id:
@@ -366,8 +368,8 @@ def get_students(request):
                     }
             student_data.append(data)
         return JsonResponse(json.dumps(student_data), content_type='application/json', safe=False)
-    except Exception as e:
-        return e
+    except Exception:
+        return HttpResponse("[]", content_type="application/json")
 
 
 @csrf_exempt
@@ -403,7 +405,7 @@ def save_attendance(request):
 
 def staff_update_attendance(request):
     staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff_id=staff)
+    subjects = Subject.objects.filter(staff_id=staff, is_active=True)
     sessions = _instructor_sessions(staff)
     context = {
         'subjects': subjects,
@@ -428,8 +430,8 @@ def get_student_attendance(request):
                     "status": attendance.status}
             student_data.append(data)
         return JsonResponse(json.dumps(student_data), content_type='application/json', safe=False)
-    except Exception as e:
-        return e
+    except Exception:
+        return HttpResponse("[]", content_type="application/json")
 
 
 @csrf_exempt
@@ -572,10 +574,10 @@ def staff_view_notification(request):
 
 def staff_add_result(request):
     staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff=staff)
-    sessions = Session.objects.all()
+    subjects = Subject.objects.filter(staff=staff, is_active=True)
+    sessions = Session.objects.latest_first()
     context = {
-        'page_title': 'Result Upload',
+        'page_title': 'Enter exam results (units)',
         'subjects': subjects,
         'sessions': sessions
     }
@@ -583,23 +585,39 @@ def staff_add_result(request):
         try:
             student_id = request.POST.get('student_list')
             subject_id = request.POST.get('subject')
-            test = request.POST.get('test')
-            exam = request.POST.get('exam')
+            session_raw = (request.POST.get('session') or "").strip()
+            remarks = (request.POST.get('remarks') or "").strip()
+            test = float(request.POST.get('test') or 0)
+            exam = float(request.POST.get('exam') or 0)
             student = get_object_or_404(Student, id=student_id)
             subject = get_object_or_404(Subject, id=subject_id)
-            try:
-                data = StudentResult.objects.get(
-                    student=student, subject=subject)
-                data.exam = exam
-                data.test = test
-                data.save()
-                messages.success(request, "Scores Updated")
-            except:
-                result = StudentResult(student=student, subject=subject, test=test, exam=exam)
-                result.save()
-                messages.success(request, "Scores Saved")
-        except Exception as e:
-            messages.warning(request, "Error Occured While Processing Form")
+            if subject.staff_id != staff.id or not subject.is_active:
+                messages.error(request, "You cannot record results for this unit.")
+                return render(request, "staff_template/staff_add_result.html", context)
+            sess = None
+            if session_raw.isdigit():
+                sess = get_object_or_404(Session, id=int(session_raw))
+            obj, created = StudentResult.objects.get_or_create(
+                student=student,
+                subject=subject,
+                defaults={
+                    "test": test,
+                    "exam": exam,
+                    "remarks": remarks,
+                    "session": sess,
+                    "entered_by": request.user,
+                },
+            )
+            if not created:
+                obj.test = test
+                obj.exam = exam
+                obj.remarks = remarks
+                obj.session = sess
+                obj.entered_by = request.user
+                obj.save()
+            messages.success(request, "Scores saved" if created else "Scores updated")
+        except Exception:
+            messages.warning(request, "Could not save results. Check all fields and try again.")
     return render(request, "staff_template/staff_add_result.html", context)
 
 
@@ -610,13 +628,22 @@ def fetch_student_result(request):
         student_id = request.POST.get('student')
         student = get_object_or_404(Student, id=student_id)
         subject = get_object_or_404(Subject, id=subject_id)
-        result = StudentResult.objects.get(student=student, subject=subject)
+        result = (
+            StudentResult.objects.filter(student=student, subject=subject)
+            .order_by("-updated_at")
+            .first()
+        )
+        if result is None:
+            return HttpResponse("False")
         result_data = {
-            'exam': result.exam,
-            'test': result.test
+            "exam": result.exam,
+            "test": result.test,
+            "remarks": result.remarks,
+            "grade": result.grade,
+            "total": result.total_score(),
         }
         return HttpResponse(json.dumps(result_data))
-    except Exception as e:
+    except Exception:
         return HttpResponse('False')
 
 

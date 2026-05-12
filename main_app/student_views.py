@@ -25,7 +25,7 @@ def student_home(request):
     except Exception:
         fee_expected = fee_paid = fee_balance = 0
     total_subject = (
-        Subject.objects.filter(course=student.course).count()
+        Subject.objects.filter(course=student.course, is_active=True).count()
         if student.course_id
         else 0
     )
@@ -39,7 +39,11 @@ def student_home(request):
     subject_name = []
     data_present = []
     data_absent = []
-    subjects = Subject.objects.filter(course=student.course) if student.course_id else Subject.objects.none()
+    subjects = (
+        Subject.objects.filter(course=student.course, is_active=True)
+        if student.course_id
+        else Subject.objects.none()
+    )
     for subject in subjects:
         attendance = Attendance.objects.filter(subject=subject)
         present_count = AttendanceReport.objects.filter(
@@ -220,12 +224,131 @@ def student_view_notification(request):
 
 def student_view_result(request):
     student = get_object_or_404(Student, admin=request.user)
-    results = StudentResult.objects.filter(student=student)
-    context = {
-        'results': results,
-        'page_title': "View Results"
+    cids = _student_enrolled_course_ids(student)
+    page_title = "Exam results (by course unit)"
+    if not cids:
+        return render(
+            request,
+            "student_template/student_view_result.html",
+            {
+                "page_title": page_title,
+                "result_rows": [],
+                "no_course": True,
+                "completed_units": 0,
+                "pending_units": 0,
+                "average_total": None,
+                "learner": student,
+            },
+        )
+    units = (
+        Subject.objects.filter(course_id__in=cids, is_active=True)
+        .select_related("course", "session")
+        .order_by("course__name", "sort_order", "name")
+    )
+    unit_ids = list(units.values_list("id", flat=True))
+    results_by_subject = {
+        r.subject_id: r
+        for r in StudentResult.objects.filter(
+            student=student,
+            subject_id__in=unit_ids,
+        ).select_related("subject", "subject__course", "session")
     }
-    return render(request, "student_template/student_view_result.html", context)
+    result_rows = []
+    totals_for_avg = []
+    for u in units:
+        r = results_by_subject.get(u.id)
+        status_label = "Pending"
+        total = None
+        grade = ""
+        remarks = ""
+        if r is not None and (r.test or r.exam):
+            status_label = "Recorded"
+            total = r.total_score()
+            grade = r.grade or ""
+            remarks = (r.remarks or "").strip()
+            totals_for_avg.append(float(total))
+        result_rows.append(
+            {
+                "unit": u,
+                "result": r,
+                "total": total,
+                "grade": grade,
+                "remarks": remarks,
+                "status_label": status_label,
+            }
+        )
+    n = len(result_rows)
+    completed_units = sum(1 for row in result_rows if row["status_label"] == "Recorded")
+    pending_units = n - completed_units
+    average_total = None
+    if totals_for_avg:
+        average_total = round(sum(totals_for_avg) / len(totals_for_avg), 1)
+    return render(
+        request,
+        "student_template/student_view_result.html",
+        {
+            "page_title": page_title,
+            "result_rows": result_rows,
+            "no_course": False,
+            "completed_units": completed_units,
+            "pending_units": pending_units,
+            "average_total": average_total,
+            "learner": student,
+        },
+    )
+
+
+def student_result_slip_pdf(request):
+    """PDF result slip for the logged-in learner (own results only)."""
+    from django.conf import settings
+
+    student = get_object_or_404(Student, admin=request.user)
+    cids = _student_enrolled_course_ids(student)
+    if not cids:
+        return HttpResponse("No enrolled courses.", status=404, content_type="text/plain")
+    units = (
+        Subject.objects.filter(course_id__in=cids, is_active=True)
+        .select_related("course")
+        .order_by("course__name", "sort_order", "name")
+    )
+    unit_ids = list(units.values_list("id", flat=True))
+    results_by_subject = {
+        r.subject_id: r
+        for r in StudentResult.objects.filter(
+            student=student,
+            subject_id__in=unit_ids,
+        ).select_related("subject")
+    }
+    result_rows = []
+    for u in units:
+        r = results_by_subject.get(u.id)
+        if r is None or not (r.test or r.exam):
+            continue
+        result_rows.append(
+            {
+                "course_name": u.course.name if u.course_id else "",
+                "unit_name": u.name,
+                "test": r.test,
+                "exam": r.exam,
+                "total": f"{r.total_score():.1f}",
+                "grade": r.grade or "",
+                "remarks": (r.remarks or "")[:200],
+            }
+        )
+    from .pdf_results import build_student_result_slip_pdf
+
+    pdf_bytes = build_student_result_slip_pdf(
+        student,
+        result_rows,
+        college_name=getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        hub_tagline=getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
+        college_location=getattr(settings, "COLLEGE_LOCATION", ""),
+    )
+    adm = (student.student_id or "learner").replace("/", "-")
+    fn = f"result-slip-{adm}-{timezone.localtime():%Y%m%d}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="{fn}"'
+    return resp
 
 
 def _student_enrolled_course_ids(student):

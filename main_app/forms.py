@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from django.forms.widgets import DateInput, TextInput
 
 from .models import *
@@ -460,7 +461,7 @@ class SubjectForm(FormSettings):
 
     class Meta:
         model = Subject
-        fields = ['name', 'staff', 'course']
+        fields = ["name", "staff", "course", "session", "is_active", "sort_order"]
 
 
 class SessionForm(FormSettings):
@@ -539,21 +540,34 @@ class StaffEditForm(CustomUserForm):
 
 
 class EditResultForm(FormSettings):
-    # IMPORTANT: keep queryset lazy at import time; DB tables may not exist during startup/deploy.
-    session_list = Session.objects.none()
-    session_year = forms.ModelChoiceField(
-        label="Session Year", queryset=session_list, required=True)
-
-    def __init__(self, *args, **kwargs):
-        super(EditResultForm, self).__init__(*args, **kwargs)
-        self.fields["session_year"].queryset = Session.objects.active_or_latest()
-        latest_active = Session.objects.active_or_latest().first()
-        if latest_active and not self.initial.get("session_year"):
-            self.fields["session_year"].initial = latest_active.pk
-
     class Meta:
         model = StudentResult
-        fields = ['session_year', 'subject', 'student', 'test', 'exam']
+        fields = ["session", "subject", "student", "test", "exam", "remarks"]
+        widgets = {
+            "remarks": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        }
+
+    def __init__(self, *args, staff=None, **kwargs):
+        super(EditResultForm, self).__init__(*args, **kwargs)
+        self.fields["session"].queryset = Session.objects.latest_first()
+        self.fields["session"].required = False
+        if staff is not None:
+            self.fields["subject"].queryset = Subject.objects.filter(
+                staff=staff, is_active=True
+            ).select_related("course")
+            cids = list(
+                Subject.objects.filter(staff=staff)
+                .values_list("course_id", flat=True)
+                .distinct()
+            )
+            enrolled_ids = Enrollment.objects.filter(
+                course_id__in=cids, status="active"
+            ).values_list("student_id", flat=True)
+            self.fields["student"].queryset = (
+                Student.objects.filter(Q(course_id__in=cids) | Q(id__in=enrolled_ids))
+                .select_related("admin")
+                .distinct()
+            )
 
 
 class AdmissionOfficerCreateForm(forms.Form):

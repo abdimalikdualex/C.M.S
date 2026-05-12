@@ -114,6 +114,22 @@
                                 </p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            {% url 'add_subject' as add_subject %}
+                            <a href="{{ add_subject }}"
+                                class="nav-link {% if add_subject == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Add course unit</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_subject' as manage_subject %}
+                            <a href="{{ manage_subject }}"
+                                class="nav-link {% if request.resolver_match.url_name == 'manage_subject' or request.resolver_match.url_name == 'edit_subject' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Manage units / subjects</p>
+                            </a>
+                        </li>
 
 
                     </ul>
@@ -235,6 +251,14 @@
                         class="nav-link {% if admin_assessments == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-tasks"></i>
                         <p>Assessments overview</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    {% url 'admin_results_overview' as admin_results_overview %}
+                    <a href="{{ admin_results_overview }}"
+                        class="nav-link {% if request.resolver_match.url_name == 'admin_results_overview' or request.resolver_match.url_name == 'admin_results_export_csv' or request.resolver_match.url_name == 'admin_results_export_pdf' %} active {% endif %}">
+                        <i class="nav-icon fas fa-graduation-cap"></i>
+                        <p>Exam results (all)</p>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -483,6 +507,34 @@
                                 </ul>
                             </li>
 
+                            <li class="nav-item has-treeview">
+                                <a href="#" class="nav-link">
+                                    <i class="nav-icon fas fa-graduation-cap"></i>
+                                    <p>
+                                        Exam results
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        {% url 'staff_add_result' as staff_add_result %}
+                                        <a href="{{ staff_add_result }}"
+                                            class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Enter scores</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        {% url 'edit_student_result' as edit_student_result %}
+                                        <a href="{{ edit_student_result }}"
+                                            class="nav-link {% if edit_student_result == request.path %} active {% endif %}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Edit scores</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+
                             <li class="nav-item">
                                 {% url 'staff_view_notification' as staff_view_notification %}
                                 <a href="{{staff_view_notification}}"
@@ -605,6 +657,15 @@
                                                 class="nav-link {% if request.resolver_match.url_name == 'student_assessment_list' or request.resolver_match.url_name == 'student_assessment_detail' %} active {% endif %}">
                                                 <i class="nav-icon fas fa-tasks"></i>
                                                 <p>Practicals &amp; projects</p>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            {% url 'student_view_result' as student_view_result %}
+                                            <a href="{{ student_view_result }}"
+                                                class="nav-link {% if request.resolver_match.url_name == 'student_view_result' or request.resolver_match.url_name == 'student_result_slip_pdf' %} active {% endif %}">
+                                                <i class="nav-icon fas fa-graduation-cap"></i>
+                                                <p>Exam results</p>
                                             </a>
                                         </li>
 

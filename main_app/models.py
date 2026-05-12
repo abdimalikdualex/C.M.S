@@ -397,11 +397,32 @@ class Staff(models.Model):
 
 
 class Subject(models.Model):
+    """Course unit / subject (e.g. JavaScript Basics) — one course, one lead instructor."""
+
     name = models.CharField(max_length=120)
-    staff = models.ForeignKey(Staff,on_delete=models.CASCADE,)
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    session = models.ForeignKey(
+        Session,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="subjects",
+        help_text="Optional: scope this unit to an intake (filtering, reporting).",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive units are hidden from new result entry and student unit lists.",
+    )
+    sort_order = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Display order within the course (lower first).",
+    )
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["course__name", "sort_order", "name"]
 
     def __str__(self):
         return self.name
@@ -472,12 +493,53 @@ class NotificationStudent(models.Model):
 
 
 class StudentResult(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    """Exam marks per learner per course unit (subject). Test + exam = total; grade auto-derived."""
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="results")
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="student_results")
+    session = models.ForeignKey(
+        Session,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="student_results",
+        help_text="Intake when the result was recorded (optional).",
+    )
     test = models.FloatField(default=0)
     exam = models.FloatField(default=0)
+    grade = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        help_text="Distinction / Credit / Pass / Fail — set automatically from total.",
+    )
+    remarks = models.TextField(blank=True, default="")
+    entered_by = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="exam_results_recorded",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.student} — {self.subject}"
+
+    def total_score(self) -> float:
+        from .results_utils import result_total
+
+        return result_total(self.test, self.exam)
+
+    def save(self, *args, **kwargs):
+        from .results_utils import grade_from_total, result_total
+
+        self.grade = grade_from_total(result_total(self.test, self.exam))
+        super().save(*args, **kwargs)
 
 
 class Assessment(models.Model):

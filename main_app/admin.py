@@ -27,6 +27,29 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ("student_id",)
 
 
+class StudentResultAdmin(admin.ModelAdmin):
+    list_display = (
+        "student",
+        "subject",
+        "session",
+        "test",
+        "exam",
+        "grade",
+        "updated_at",
+    )
+    list_filter = ("grade", "session", "subject__course")
+    search_fields = (
+        "student__student_id",
+        "student__admin__full_name",
+        "student__admin__first_name",
+        "student__admin__last_name",
+        "subject__name",
+        "remarks",
+    )
+    raw_id_fields = ("student", "subject", "session", "entered_by")
+    date_hierarchy = "updated_at"
+
+
 admin.site.register(CustomUser, UserModel)
 admin.site.register(Staff)
 admin.site.register(Student, StudentAdmin)
@@ -58,6 +81,7 @@ class AuditLogAdmin(admin.ModelAdmin):
 
 
 admin.site.register(AuditLog, AuditLogAdmin)
+admin.site.register(StudentResult, StudentResultAdmin)
 admin.site.register(Assessment)
 admin.site.register(Submission)
 admin.site.register(StudentHubProfile)

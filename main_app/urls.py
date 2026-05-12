@@ -223,6 +223,21 @@ urlpatterns = [
          hod_views.edit_course, name='edit_course'),
     path("subject/edit/<int:subject_id>",
          hod_views.edit_subject, name='edit_subject'),
+    path(
+        "admin/results/",
+        hod_views.admin_results_overview,
+        name="admin_results_overview",
+    ),
+    path(
+        "admin/results/export/csv/",
+        hod_views.admin_results_export_csv,
+        name="admin_results_export_csv",
+    ),
+    path(
+        "admin/results/export/pdf/",
+        hod_views.admin_results_export_pdf,
+        name="admin_results_export_pdf",
+    ),
 
 
     # Staff
@@ -331,6 +346,11 @@ urlpatterns = [
          name="student_view_notification"),
     path('student/view/result/', student_views.student_view_result,
          name='student_view_result'),
+    path(
+        "student/result/slip.pdf",
+        student_views.student_result_slip_pdf,
+        name="student_result_slip_pdf",
+    ),
     path(
         "student/hub/",
         hub_views.student_growth_hub,

@@ -7,35 +7,21 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
-                <!-- general form elements -->
-                    <form method="POST">
-                        {% csrf_token %}
-                <div class="card card-dark">
-                    <div class="card-header">
-                        <h3 class="card-title">{{page_title}}</h3>
-                    </div>
-
-       
-                    <!-- /.card-header -->
-                    <!-- form start -->
-                    <div class="card-body">
-
-
-                     
-
-                 {{ form }}
-
-                    </div>
-                    <!-- /.card-body -->
-
-                    <div class="card-footer">
-                        <button type="submit" id='update_result' class="btn btn-primary btn-block">Update Result</button>
-               
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="card card-dark">
+                        <div class="card-header">
+                            <h3 class="card-title">{{page_title}}</h3>
+                        </div>
+                        <div class="card-body">
+                            {{ form }}
+                            <p id="grade_preview" class="text-muted small mb-0" style="display:none;"></p>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" id='update_result' class="btn btn-primary btn-block">Update Result</button>
+                        </div>
                     </div>
                 </form>
-                </div>
-                <!-- /.card -->
-
             </div>
         </div>
     </div>
@@ -49,22 +35,24 @@
         $("#id_subject").change(function () {
             fetchStudents();
             });
-            $("#id_session_year").change(function () {
+            $("#id_session").change(function () {
                 fetchStudents();
-                });
+            });
    $("#id_student").change(function () {
     fetch_student_result();
                 });
                 $("#id_exam").hide()
                 $("#id_test").hide()
+                $("#id_remarks").closest(".form-group").hide()
                 $("#update_result").hide()
                 $('label[for="id_test"]').hide();
                 $('label[for="id_exam"]').hide();
+                $('label[for="id_remarks"]').hide();
         function fetchStudents(){
             var subject = $("#id_subject").val()
-            var session = $("#id_session_year").val()
+            var session = $("#id_session").val() || ""
             $("#id_student").html(null)
-            if (session.length  == 0 || subject.length == 0 || session < 1 || subject < 1){
+            if (!subject || subject < 1){
                 return false;
             }
             $.ajax({
@@ -72,19 +60,18 @@
                 type: 'POST',
                 data: {
                     subject: subject,
-                    session:session
+                    session: session
                 }
             }).done(function (response) {
                 var json_data = JSON.parse(response)
                 if (json_data.length < 1) {
-                    alert("No data to display")
+                    alert("No learners found for this unit (try another session or check enrollments).")
                 } else {
                     var div_data = "<option>Select Student</option>"
 
                     for (key in json_data) {
                         div_data += "<option value='" + json_data[key]['id'] + "'>" + json_data[key]['name'] + " </option>"
                     }
-             
                     $("#id_student").html(div_data)
                 }
             }).fail(function (response) {
@@ -97,12 +84,16 @@
                 var subject = $("#id_subject").val()
                 $("#id_test").val(null)
                 $("#id_exam").val(null)
+                $("#id_remarks").val("")
                 $("#id_exam").hide()
                 $("#update_result").hide()
                 $("#id_test").hide()
+                $("#id_remarks").closest(".form-group").hide()
+                $("#grade_preview").hide().text("")
                 $('label[for="id_test"]').hide();
                 $('label[for="id_exam"]').hide();
-                if (student.length  == 0 || subject.length == 0 || student < 1 || subject < 1){
+                $('label[for="id_remarks"]').hide();
+                if (!student || !subject || student < 1 || subject < 1){
                     return false;
                 }
                 $.ajax({
@@ -114,21 +105,31 @@
                     }
                 }).done(function (response) {
                     if (response == 'False') {
-                        alert("No data to display")
+                        $("#id_exam").show()
+                        $("#id_test").show()
+                        $("#id_remarks").closest(".form-group").show()
+                        $("#update_result").show()
+                        $('label[for="id_test"]').show();
+                        $('label[for="id_exam"]').show();
+                        $('label[for="id_remarks"]').show();
                     } else {
                         var json_data = JSON.parse(response)
-                        
                             $("#id_test").val(json_data['test'])
                             $("#id_exam").val(json_data['exam'])
+                            $("#id_remarks").val(json_data['remarks'] || '')
                             $("#id_exam").show()
                             $("#id_test").show()
+                            $("#id_remarks").closest(".form-group").show()
                             $("#update_result").show()
                             $('label[for="id_test"]').show();
                             $('label[for="id_exam"]').show();
-
+                            $('label[for="id_remarks"]').show();
+                            if (json_data['grade'] !== undefined) {
+                                $("#grade_preview").text("Current total: " + json_data['total'] + " · Grade: " + json_data['grade']).show();
+                            }
                     }
                 }).fail(function (response) {
-                    alert("Error in fetching students")
+                    alert("Error loading result")
                 })
                }
 

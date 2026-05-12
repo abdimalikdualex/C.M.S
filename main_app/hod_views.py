@@ -153,6 +153,142 @@ def _hub_superadmin(request) -> bool:
     return str(getattr(request.user, "user_type", "") or "").strip() in ("1", "4")
 
 
+def _admin_results_queryset(request):
+    qs = StudentResult.objects.select_related(
+        "student__admin", "subject__course", "session", "entered_by"
+    ).order_by("-updated_at")
+    course_id = (request.GET.get("course") or "").strip()
+    if course_id.isdigit():
+        qs = qs.filter(subject__course_id=int(course_id))
+    subject_id = (request.GET.get("subject") or "").strip()
+    if subject_id.isdigit():
+        qs = qs.filter(subject_id=int(subject_id))
+    session_id = (request.GET.get("session") or "").strip()
+    if session_id.isdigit():
+        qs = qs.filter(session_id=int(session_id))
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(student__student_id__icontains=q)
+            | Q(student__admin__full_name__icontains=q)
+            | Q(student__admin__first_name__icontains=q)
+            | Q(student__admin__last_name__icontains=q)
+            | Q(student__admin__email__icontains=q)
+        )
+    return qs
+
+
+def admin_results_overview(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from django.core.paginator import Paginator
+
+    qs = _admin_results_queryset(request)
+    paginator = Paginator(qs, 40)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    qp = request.GET.copy()
+    qp.pop("page", None)
+    query_no_page = qp.urlencode()
+    subj_qs = Subject.objects.filter(is_active=True).select_related("course").order_by(
+        "course__name", "sort_order", "name"
+    )
+    return render(
+        request,
+        "hod_template/admin_results_overview.html",
+        {
+            "page_title": "Exam results — all courses",
+            "page_obj": page_obj,
+            "courses": Course.objects.order_by("name"),
+            "filter_subjects": subj_qs,
+            "sessions": Session.objects.latest_first(),
+            "query_no_page": query_no_page,
+            "filters": {
+                "course": (request.GET.get("course") or "").strip(),
+                "subject": (request.GET.get("subject") or "").strip(),
+                "session": (request.GET.get("session") or "").strip(),
+                "q": (request.GET.get("q") or "").strip(),
+            },
+        },
+    )
+
+
+def admin_results_export_csv(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    rows = list(_admin_results_queryset(request)[:8000])
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(
+        [
+            "Admission No",
+            "Student Name",
+            "Course",
+            "Unit/Subject",
+            "Test",
+            "Exam",
+            "Total",
+            "Grade",
+            "Session",
+            "Remarks",
+            "Updated",
+        ]
+    )
+    for r in rows:
+        w.writerow(
+            [
+                r.student.student_id,
+                r.student.admin.get_full_name(),
+                r.subject.course.name if r.subject.course_id else "",
+                r.subject.name,
+                r.test,
+                r.exam,
+                r.total_score(),
+                r.grade,
+                r.session.intake_label if r.session_id else "",
+                (r.remarks or "")[:200],
+                r.updated_at.strftime("%Y-%m-%d %H:%M"),
+            ]
+        )
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Exam results exported (CSV)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(rows)}",
+    )
+    payload = "\ufeff" + buf.getvalue()
+    fn = f"exam-results-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
+def admin_results_export_pdf(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .pdf_results import build_results_register_pdf
+
+    rows = list(_admin_results_queryset(request)[:400])
+    pdf_bytes = build_results_register_pdf(
+        rows,
+        college_name=getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        hub_tagline=getattr(settings, "HUB_TAGLINE", "ICT Hub System"),
+        college_location=getattr(settings, "COLLEGE_LOCATION", ""),
+        title="Exam results register",
+    )
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Exam results exported (PDF)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(rows)}",
+    )
+    fn = f"exam-results-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
 def _audit_trail_queryset(request):
     """GET filters for audit list / exports (Superadmin-only callers)."""
     qs = AuditLog.objects.all().select_related("user", "student__admin")
@@ -788,25 +924,18 @@ def add_subject(request):
     form = SubjectForm(request.POST or None)
     context = {
         'form': form,
-        'page_title': 'Add Subject'
+        'page_title': 'Add Course Unit / Subject'
     }
     if request.method == 'POST':
         if form.is_valid():
-            name = form.cleaned_data.get('name')
-            course = form.cleaned_data.get('course')
-            staff = form.cleaned_data.get('staff')
             try:
-                subject = Subject()
-                subject.name = name
-                subject.staff = staff
-                subject.course = course
-                subject.save()
+                subject = form.save()
                 log_audit(
                     request,
                     module=MODULE_SUBJECTS,
                     activity="Subject created",
                     audit_action=ACTION_CREATE,
-                    target_record=f"{subject.name} ({course.name if course else ''})",
+                    target_record=f"{subject.name} ({subject.course.name if subject.course_id else ''})",
                 )
                 messages.success(request, "Successfully Added")
                 return redirect(reverse('add_subject'))
@@ -891,10 +1020,12 @@ def manage_course(request):
 
 
 def manage_subject(request):
-    subjects = Subject.objects.all()
+    subjects = Subject.objects.select_related("staff__admin", "course", "session").order_by(
+        "course__name", "sort_order", "name"
+    )
     context = {
         'subjects': subjects,
-        'page_title': 'Manage Subjects'
+        'page_title': 'Manage Course Units / Subjects'
     }
     return render(request, "hod_template/manage_subject.html", context)
 
@@ -1110,27 +1241,21 @@ def edit_subject(request, subject_id):
     context = {
         'form': form,
         'subject_id': subject_id,
-        'page_title': 'Edit Subject'
+        'page_title': 'Edit Course Unit / Subject'
     }
     if request.method == 'POST':
         if form.is_valid():
-            name = form.cleaned_data.get('name')
-            course = form.cleaned_data.get('course')
-            staff = form.cleaned_data.get('staff')
             try:
-                subject = Subject.objects.get(id=subject_id)
-                subject.name = name
-                subject.staff = staff
-                subject.course = course
-                subject.save()
+                subject = form.save()
                 log_audit(
                     request,
                     module=MODULE_SUBJECTS,
                     activity="Subject updated",
                     audit_action=ACTION_UPDATE,
-                    target_record=f"{subject.name} ({course.name if course else ''})",
+                    target_record=f"{subject.name} ({subject.course.name if subject.course_id else ''})",
                 )
                 messages.success(request, "Successfully Updated")
+                return redirect(reverse('edit_subject', args=[subject_id]))
             except Exception as e:
                 messages.error(request, "Could Not Add " + str(e))
         else:
