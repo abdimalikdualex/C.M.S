@@ -43,6 +43,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="{% url 'audit_trail' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_trail' %} active {% endif %}">
+                        <i class="nav-icon fas fa-history"></i>
+                        <p>Audit trail</p>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="{% url 'active_sessions' %}" class="nav-link {% if request.resolver_match.url_name == 'active_sessions' %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-check"></i>
                         <p>

@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .forms import *
 from .models import *
+from .audit import ACTION_CREATE, MODULE_ASSIGNMENTS, log_audit
 
 
 def student_home(request):
@@ -62,6 +63,7 @@ def student_home(request):
         'fee_paid': fee_paid,
         'fee_balance': fee_balance,
         'enrolled_course': student.course,
+        'learner': student,
     }
     return render(request, 'student_template/home_content.html', context)
 
@@ -157,7 +159,8 @@ def student_view_profile(request):
     form = StudentEditForm(request.POST or None, request.FILES or None,
                            instance=student)
     context = {'form': form,
-               'page_title': 'View/Edit Profile'
+               'page_title': 'View/Edit Profile',
+               'learner': student,
                }
     if request.method == 'POST':
         try:
@@ -295,6 +298,14 @@ def student_assessment_detail(request, pk):
         if upload:
             submission.file = upload
         submission.save()
+        log_audit(
+            request,
+            module=MODULE_ASSIGNMENTS,
+            activity="Assignment submission saved",
+            audit_action=ACTION_CREATE,
+            target_record=f"{assessment.title}: {student.student_id}",
+            student=student,
+        )
         messages.success(request, "Submission saved.")
         return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
 

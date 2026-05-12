@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Attendance, Session, Staff, Student, Subject
 from .roles import get_post_login_redirect_url
+from .audit import ACTION_LOGIN, ACTION_LOGOUT, MODULE_AUTH, log_audit
 
 
 def login_page(request):
@@ -24,6 +25,13 @@ def doLogin(request, **kwargs):
 
         if user is not None:
             login(request, user)
+            log_audit(
+                request,
+                module=MODULE_AUTH,
+                activity="User logged in",
+                audit_action=ACTION_LOGIN,
+                target_record=user.email,
+            )
             return redirect(get_post_login_redirect_url(user))
         else:
             messages.error(request, "Invalid details")
@@ -31,8 +39,15 @@ def doLogin(request, **kwargs):
 
 
 def logout_user(request):
-    if request.user is not None:
-        logout(request)
+    if getattr(request.user, "is_authenticated", False):
+        log_audit(
+            request,
+            module=MODULE_AUTH,
+            activity="User logged out",
+            audit_action=ACTION_LOGOUT,
+            target_record=request.user.email,
+        )
+    logout(request)
     return redirect("/")
 
 

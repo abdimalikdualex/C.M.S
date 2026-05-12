@@ -141,7 +141,7 @@ def build_student_register_pdf(
     story.append(Spacer(1, 4 * mm))
 
     header = [
-        "Reg. no.",
+        "Admission no.",
         "Full name",
         "Phone",
         "Course",
@@ -151,7 +151,7 @@ def build_student_register_pdf(
     ]
     # Usable width 210 - 12 - 12 = 186mm (must match sum of colWidths exactly)
     col_w = [
-        20 * mm,  # Reg. no.
+        20 * mm,  # Admission no.
         42 * mm,  # Full name
         23 * mm,  # Phone
         32 * mm,  # Course
@@ -214,7 +214,7 @@ def build_enrollment_register_pdf(
     story.append(Spacer(1, 4 * mm))
 
     header = [
-        "Reg. no.",
+        "Admission no.",
         "Full name",
         "Phone",
         "Course",

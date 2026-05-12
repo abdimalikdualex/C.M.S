@@ -167,6 +167,17 @@ urlpatterns = [
         hod_views.admin_export_enrollments_csv,
         name="admin_export_enrollments_csv",
     ),
+    path("admin/audit-trail/", hod_views.audit_trail_list, name="audit_trail"),
+    path(
+        "admin/audit-trail/export.csv",
+        hod_views.audit_trail_export_csv,
+        name="audit_trail_export_csv",
+    ),
+    path(
+        "admin/audit-trail/export.pdf",
+        hod_views.audit_trail_export_pdf,
+        name="audit_trail_export_pdf",
+    ),
     path(
         "admin/hub-events/",
         hod_views.admin_hub_events,

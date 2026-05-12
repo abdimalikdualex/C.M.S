@@ -13,6 +13,10 @@
                     <div class="card-header">
                         <h3 class="card-title">{{page_title}}</h3>
                     </div>
+                    <p class="px-3 pt-2 mb-0 text-muted">
+                        <strong>Admission no.:</strong>
+                        {% if learner.student_id %}{{ learner.student_id }}{% else %}—{% endif %}
+                    </p>
 
                     {% include "main_app/form_template.html" with messages=messages  form=form button_text="Update Profile"%}
                 </div>

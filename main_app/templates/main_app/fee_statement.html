@@ -25,7 +25,7 @@
       {% if college_location %}<div class="stmt-sub">{{ college_location }}</div>{% endif %}
       <div class="stmt-sub">Fee account statement</div>
       <p><strong>{{ student.admin.get_full_name }}</strong><br>
-        Student ID: {{ student.student_id }}<br>
+        Admission no.: {{ student.student_id }}<br>
         {% if student.course %}Course: {{ student.course.name }}<br>{% endif %}
         {% if student.enrollment_date %}Enrolled: {{ student.enrollment_date|date:"Y-m-d" }}{% endif %}
       </p>

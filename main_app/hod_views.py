@@ -20,6 +20,23 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import UpdateView
 
 from .access import user_can_edit_assigned_course_fees
+from .audit import (
+    ACTION_CREATE,
+    ACTION_DELETE,
+    ACTION_EXPORT,
+    ACTION_UPDATE,
+    MODULE_COURSES,
+    MODULE_ENROLLMENT,
+    MODULE_EVENTS,
+    MODULE_FEES,
+    MODULE_INSTRUCTORS,
+    MODULE_REPORTS,
+    MODULE_SESSIONS,
+    MODULE_STUDENTS,
+    MODULE_SUBJECTS,
+    KNOWN_MODULES,
+    log_audit,
+)
 from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
 from .money import FEE_EDIT_VALIDATION_MSG, parse_post_whole_kes
@@ -108,7 +125,7 @@ def admin_home(request):
         "student_count_list_in_course": student_count_list_in_course,
         "course_name_list": course_name_list,
         "current_active_session": Session.objects.active().first(),
-
+        "recent_audit_logs": AuditLog.objects.select_related("user").order_by("-created_at")[:12],
     }
     return render(request, 'hod_template/home_content.html', context)
 
@@ -136,6 +153,165 @@ def _hub_superadmin(request) -> bool:
     return str(getattr(request.user, "user_type", "") or "").strip() in ("1", "4")
 
 
+def _audit_trail_queryset(request):
+    """GET filters for audit list / exports (Superadmin-only callers)."""
+    qs = AuditLog.objects.all().select_related("user", "student__admin")
+    uid = (request.GET.get("user") or "").strip()
+    if uid.isdigit():
+        qs = qs.filter(user_id=int(uid))
+    mod = (request.GET.get("module") or "").strip()
+    if mod:
+        qs = qs.filter(module=mod)
+    act = (request.GET.get("audit_action") or "").strip()
+    if act:
+        qs = qs.filter(audit_action=act)
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(activity__icontains=q)
+            | Q(detail__icontains=q)
+            | Q(target_record__icontains=q)
+            | Q(user_name__icontains=q)
+            | Q(legacy_event__icontains=q)
+            | Q(module__icontains=q)
+        )
+    df = (request.GET.get("date_from") or "").strip()
+    dt_to = (request.GET.get("date_to") or "").strip()
+    if df:
+        qs = qs.filter(created_at__date__gte=df)
+    if dt_to:
+        qs = qs.filter(created_at__date__lte=dt_to)
+    return qs.order_by("-created_at")
+
+
+def audit_trail_list(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from django.core.paginator import Paginator
+
+    qs = _audit_trail_queryset(request)
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    user_ids = AuditLog.objects.exclude(user__isnull=True).values_list("user_id", flat=True).distinct()[:300]
+    filter_users = CustomUser.objects.filter(pk__in=user_ids).order_by("email", "full_name")
+    qs = request.GET.copy()
+    qs.pop("page", None)
+    query_no_page = qs.urlencode()
+    return render(
+        request,
+        "hod_template/audit_trail.html",
+        {
+            "page_title": "Audit trail",
+            "page_obj": page_obj,
+            "known_modules": KNOWN_MODULES,
+            "action_choices": AuditLog.ACTION_CHOICES,
+            "filter_users": filter_users,
+            "query_no_page": query_no_page,
+            "filters": {
+                "user": (request.GET.get("user") or "").strip(),
+                "module": (request.GET.get("module") or "").strip(),
+                "audit_action": (request.GET.get("audit_action") or "").strip(),
+                "q": (request.GET.get("q") or "").strip(),
+                "date_from": (request.GET.get("date_from") or "").strip(),
+                "date_to": (request.GET.get("date_to") or "").strip(),
+            },
+        },
+    )
+
+
+def _audit_filters_description(request) -> str:
+    parts = []
+    g = request.GET
+    if g.get("user"):
+        parts.append(f"User id {g.get('user')}")
+    if g.get("module"):
+        parts.append(f"Module {g.get('module')}")
+    if g.get("audit_action"):
+        parts.append(f"Action {g.get('audit_action')}")
+    if g.get("q"):
+        parts.append(f"Search “{g.get('q')}”")
+    if g.get("date_from"):
+        parts.append(f"From {g.get('date_from')}")
+    if g.get("date_to"):
+        parts.append(f"To {g.get('date_to')}")
+    return " · ".join(parts) if parts else "No filters (all rows)"
+
+
+def audit_trail_export_csv(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    rows = list(_audit_trail_queryset(request)[:5000])
+    buf = StringIO()
+    w = csv.writer(buf)
+    w.writerow(
+        [
+            "When",
+            "User",
+            "Role",
+            "Module",
+            "Action type",
+            "Activity",
+            "Legacy event",
+            "Target",
+            "Detail",
+            "IP",
+        ]
+    )
+    for r in rows:
+        w.writerow(
+            [
+                r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                r.user_name or (r.user.email if r.user_id else ""),
+                r.user_role,
+                r.module,
+                r.get_audit_action_display(),
+                r.activity,
+                r.legacy_event,
+                r.target_record,
+                (r.detail or "")[:500],
+                r.ip_address,
+            ]
+        )
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Audit trail exported (CSV)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(rows)}",
+        detail=_audit_filters_description(request),
+    )
+    payload = "\ufeff" + buf.getvalue()
+    fn = f"audit-trail-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
+def audit_trail_export_pdf(request):
+    if not _hub_superadmin(request):
+        return redirect(reverse("login_page"))
+    from .pdf_audit_trail import build_audit_trail_pdf
+
+    rows = list(_audit_trail_queryset(request)[:500])
+    pdf_bytes = build_audit_trail_pdf(
+        rows,
+        college_name=getattr(settings, "COLLEGE_NAME", "ELEVATE DIGITAL HUB"),
+        filters_note=_audit_filters_description(request),
+    )
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Audit trail exported (PDF)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(rows)}",
+        detail=_audit_filters_description(request),
+    )
+    fn = f"audit-trail-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    return resp
+
+
 def admin_hub_events(request):
     if not _hub_superadmin(request):
         return redirect(reverse("login_page"))
@@ -154,7 +330,14 @@ def admin_hub_event_add(request):
         return redirect(reverse("login_page"))
     form = HubEventForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        ev = form.save()
+        log_audit(
+            request,
+            module=MODULE_EVENTS,
+            activity="Hub event created",
+            audit_action=ACTION_CREATE,
+            target_record=ev.title[:500],
+        )
         messages.success(request, "Event created.")
         return redirect(reverse("admin_hub_events"))
     return render(
@@ -173,6 +356,14 @@ def admin_hub_event_toggle_publish(request, event_id):
     ev.is_published = not ev.is_published
     ev.save(update_fields=["is_published", "updated_at"])
     state = "published" if ev.is_published else "unpublished"
+    log_audit(
+        request,
+        module=MODULE_EVENTS,
+        activity=f"Hub event {state}",
+        audit_action=ACTION_UPDATE,
+        target_record=ev.title[:500],
+        detail=state,
+    )
     messages.success(request, f"“{ev.title}” is now {state} on the student events page.")
     return redirect(reverse("admin_hub_events"))
 
@@ -197,6 +388,14 @@ def admin_export_students_pdf(request):
     fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Student register exported (PDF)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(students)}",
+        detail=describe_export_filters(request),
+    )
     return resp
 
 
@@ -204,13 +403,13 @@ def admin_export_students_csv(request):
     """Superadmin: student register as UTF-8 CSV (Excel-friendly)."""
     if not _hub_superadmin(request):
         return redirect(reverse("login_page"))
-    from .student_export_utils import get_students_for_export_list, student_row_cells
+    from .student_export_utils import describe_export_filters, get_students_for_export_list, student_row_cells
 
     students = get_students_for_export_list(request)
     buf = StringIO()
     w = csv.writer(buf)
     w.writerow(
-        ["Reg No", "Full Name", "Phone", "Course", "Session", "Enrollment Date", "Fee Status"]
+        ["Admission No", "Full Name", "Phone", "Course", "Session", "Enrollment Date", "Fee Status"]
     )
     for st in students:
         w.writerow(student_row_cells(st))
@@ -218,6 +417,14 @@ def admin_export_students_csv(request):
     fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Student register exported (CSV)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(students)}",
+        detail=describe_export_filters(request),
+    )
     return resp
 
 
@@ -239,20 +446,32 @@ def admin_export_enrollments_pdf(request):
     fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Enrollment register exported (PDF)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(enrollments)}",
+        detail=describe_enrollment_export_filters(request),
+    )
     return resp
 
 
 def admin_export_enrollments_csv(request):
     if not _hub_superadmin(request):
         return redirect(reverse("login_page"))
-    from .student_export_utils import enrollment_row_cells, get_enrollments_for_export_list
+    from .student_export_utils import (
+        describe_enrollment_export_filters,
+        enrollment_row_cells,
+        get_enrollments_for_export_list,
+    )
 
     enrollments = get_enrollments_for_export_list(request)
     buf = StringIO()
     w = csv.writer(buf)
     w.writerow(
         [
-            "Reg No",
+            "Admission No",
             "Full Name",
             "Phone",
             "Course",
@@ -268,6 +487,14 @@ def admin_export_enrollments_csv(request):
     fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
+    log_audit(
+        request,
+        module=MODULE_REPORTS,
+        activity="Enrollment register exported (CSV)",
+        audit_action=ACTION_EXPORT,
+        target_record=f"Rows: {len(enrollments)}",
+        detail=describe_enrollment_export_filters(request),
+    )
     return resp
 
 
@@ -285,11 +512,29 @@ def admin_mark_enrollment_complete(request, enrollment_id):
                 request,
                 f"Marked {enr.course.name} as completed for this learner.",
             )
+            log_audit(
+                request,
+                module=MODULE_ENROLLMENT,
+                activity="Enrollment marked completed",
+                audit_action=ACTION_UPDATE,
+                target_record=f"Student: {enr.student.student_id}; Course: {enr.course.name}",
+                detail=f"Enrollment id {enr.pk}.",
+                student=enr.student,
+            )
         elif act == "reopen":
             enr.status = "active"
             enr.completed_on = None
             enr.save(update_fields=["status", "completed_on", "updated_at"])
             messages.success(request, "Enrollment reopened as active.")
+            log_audit(
+                request,
+                module=MODULE_ENROLLMENT,
+                activity="Enrollment reopened",
+                audit_action=ACTION_UPDATE,
+                target_record=f"Student: {enr.student.student_id}; Course: {enr.course.name}",
+                detail=f"Enrollment id {enr.pk}.",
+                student=enr.student,
+            )
     nxt = request.POST.get("next")
     if nxt == "edit_student":
         return redirect(reverse("edit_student", kwargs={"student_id": enr.student_id}))
@@ -332,6 +577,14 @@ def add_staff(request):
                 user.staff.role = role
                 user.staff.course = course
                 user.save()
+                log_audit(
+                    request,
+                    module=MODULE_INSTRUCTORS,
+                    activity="Staff / instructor added",
+                    audit_action=ACTION_CREATE,
+                    target_record=user.email,
+                    detail=f"Role: {role}; Course: {course}",
+                )
                 messages.success(request, "Successfully Added")
                 return redirect(reverse('add_staff'))
 
@@ -395,11 +648,17 @@ def add_student(request):
                     session=session,
                     total_fee_override=effective_total_fee,
                 )
-                AuditLog.objects.create(
-                    action="student_registered",
-                    detail=f"Student {user.student.student_id} enrolled to {course.name if course else 'N/A'} by admin.",
+                log_audit(
+                    request,
+                    module=MODULE_STUDENTS,
+                    activity="Student registered",
+                    audit_action=ACTION_CREATE,
+                    target_record=f"Student: {user.student.student_id}",
+                    detail=(
+                        f"{user.student.student_id} enrolled to "
+                        f"{course.name if course else 'N/A'}."
+                    ),
                     student=user.student,
-                    user=request.user,
                 )
                 # Optional: record initial payment in same flow
                 created_payment = None
@@ -414,11 +673,14 @@ def add_student(request):
                         note=pay_note,
                         created_by=request.user,
                     )
-                    AuditLog.objects.create(
-                        action="payment_recorded",
-                        detail=f"Payment {created_payment.receipt_no} amount KES {created_payment.amount} recorded.",
+                    log_audit(
+                        request,
+                        module=MODULE_FEES,
+                        activity="Payment recorded",
+                        audit_action=ACTION_CREATE,
+                        target_record=f"Student: {user.student.student_id}; Receipt: {created_payment.receipt_no}",
+                        detail=f"KES {created_payment.amount:,} via {created_payment.get_mode_display()}.",
                         student=user.student,
-                        user=request.user,
                     )
                 try:
                     user.student.refresh_from_db()
@@ -476,11 +738,14 @@ def admin_enroll_existing_student(request):
                 note=pay_note,
                 created_by=request.user,
             )
-        AuditLog.objects.create(
-            action="enrollment_created",
-            detail=f"Student {student.student_id} enrolled in {course.name}.",
+        log_audit(
+            request,
+            module=MODULE_ENROLLMENT,
+            activity="Enrollment added",
+            audit_action=ACTION_CREATE,
+            target_record=f"Student: {student.student_id}; Course: {course.name}",
+            detail=f"Enrolled in {course.name}.",
             student=student,
-            user=request.user,
         )
         messages.success(request, "Enrollment added successfully.")
         if created_payment:
@@ -502,7 +767,14 @@ def add_course(request):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                c = form.save()
+                log_audit(
+                    request,
+                    module=MODULE_COURSES,
+                    activity="Course created",
+                    audit_action=ACTION_CREATE,
+                    target_record=c.name,
+                )
                 messages.success(request, "Successfully Added")
                 return redirect(reverse('add_course'))
             except:
@@ -529,6 +801,13 @@ def add_subject(request):
                 subject.staff = staff
                 subject.course = course
                 subject.save()
+                log_audit(
+                    request,
+                    module=MODULE_SUBJECTS,
+                    activity="Subject created",
+                    audit_action=ACTION_CREATE,
+                    target_record=f"{subject.name} ({course.name if course else ''})",
+                )
                 messages.success(request, "Successfully Added")
                 return redirect(reverse('add_subject'))
 
@@ -659,8 +938,15 @@ def edit_staff(request, staff_id):
                     staff.role = role
                 staff.save()
                 user.save()
+                log_audit(
+                    request,
+                    module=MODULE_INSTRUCTORS,
+                    activity="Staff updated",
+                    audit_action=ACTION_UPDATE,
+                    target_record=user.email,
+                    detail=f"Role: {role or staff.role}",
+                )
                 messages.success(request, "Successfully Updated")
-                return redirect(reverse('edit_staff', args=[staff_id]))
             except Exception as e:
                 messages.error(request, "Could Not Update " + str(e))
         else:
@@ -680,6 +966,7 @@ def edit_student(request, student_id):
         'page_title': 'Edit Student',
         'enrollments': enrollments,
         'can_edit_enrollment_fees': user_can_edit_assigned_course_fees(request.user),
+        'learner': student,
     }
     if request.method == 'POST':
         if form.is_valid():
@@ -713,8 +1000,15 @@ def edit_student(request, student_id):
                 student.course = course
                 user.save()
                 student.save()
+                log_audit(
+                    request,
+                    module=MODULE_STUDENTS,
+                    activity="Student profile updated",
+                    audit_action=ACTION_UPDATE,
+                    target_record=f"Student: {student.student_id}",
+                    student=student,
+                )
                 messages.success(request, "Successfully Updated")
-                return redirect(reverse('edit_student', args=[student_id]))
             except Exception as e:
                 messages.error(request, "Could Not Update " + str(e))
         else:
@@ -764,15 +1058,16 @@ def edit_enrollment_fee(request, enrollment_id):
         new_fee=new_fee,
         edited_by=request.user,
     )
-    AuditLog.objects.create(
-        action="enrollment_fee_updated",
+    log_audit(
+        request,
+        module=MODULE_FEES,
+        activity="Enrollment agreed fee updated",
+        audit_action=ACTION_UPDATE,
+        target_record=f"Student: {enrollment.student.student_id}; Course: {enrollment.course.name if enrollment.course else ''}",
         detail=(
-            f"Agreed total fee for {enrollment.student.student_id} on "
-            f"{enrollment.course.name if enrollment.course else 'N/A'} changed "
-            f"from KES {old_fee:,} to KES {new_fee:,}."
+            f"Agreed total fee changed from KES {old_fee:,} to KES {new_fee:,}."
         ),
         student=enrollment.student,
-        user=request.user,
     )
     messages.success(
         request,
@@ -792,7 +1087,14 @@ def edit_course(request, course_id):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                c = form.save()
+                log_audit(
+                    request,
+                    module=MODULE_COURSES,
+                    activity="Course updated",
+                    audit_action=ACTION_UPDATE,
+                    target_record=c.name,
+                )
                 messages.success(request, "Successfully Updated")
             except:
                 messages.error(request, "Could Not Update")
@@ -821,8 +1123,14 @@ def edit_subject(request, subject_id):
                 subject.staff = staff
                 subject.course = course
                 subject.save()
+                log_audit(
+                    request,
+                    module=MODULE_SUBJECTS,
+                    activity="Subject updated",
+                    audit_action=ACTION_UPDATE,
+                    target_record=f"{subject.name} ({course.name if course else ''})",
+                )
                 messages.success(request, "Successfully Updated")
-                return redirect(reverse('edit_subject', args=[subject_id]))
             except Exception as e:
                 messages.error(request, "Could Not Add " + str(e))
         else:
@@ -836,7 +1144,14 @@ def add_session(request):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                sess = form.save()
+                log_audit(
+                    request,
+                    module=MODULE_SESSIONS,
+                    activity="Session created",
+                    audit_action=ACTION_CREATE,
+                    target_record=sess.intake_label,
+                )
                 messages.success(request, "Session Created")
                 return redirect(reverse('add_session'))
             except Exception as e:
@@ -858,6 +1173,13 @@ def set_active_session(request, session_id):
     if not session.is_active:
         session.is_active = True
         session.save(update_fields=["is_active"])
+        log_audit(
+            request,
+            module=MODULE_SESSIONS,
+            activity="Active session changed",
+            audit_action=ACTION_UPDATE,
+            target_record=session.intake_label,
+        )
         messages.success(request, f"{session.intake_label} is now the active session.")
     else:
         messages.info(request, "This session is already active.")
@@ -872,7 +1194,14 @@ def edit_session(request, session_id):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                sess = form.save()
+                log_audit(
+                    request,
+                    module=MODULE_SESSIONS,
+                    activity="Session updated",
+                    audit_action=ACTION_UPDATE,
+                    target_record=sess.intake_label,
+                )
                 messages.success(request, "Session Updated")
                 return redirect(reverse('edit_session', args=[session_id]))
             except Exception as e:
@@ -1136,22 +1465,46 @@ def send_staff_notification(request):
 
 def delete_staff(request, staff_id):
     staff = get_object_or_404(CustomUser, staff__id=staff_id)
+    label = staff.email
     staff.delete()
+    log_audit(
+        request,
+        module=MODULE_INSTRUCTORS,
+        activity="Staff deleted",
+        audit_action=ACTION_DELETE,
+        target_record=label,
+    )
     messages.success(request, "Staff deleted successfully!")
     return redirect(reverse('manage_staff'))
 
 
 def delete_student(request, student_id):
-    student = get_object_or_404(CustomUser, student__id=student_id)
-    student.delete()
+    cust = get_object_or_404(CustomUser, student__id=student_id)
+    adm = cust.student.student_id
+    cust.delete()
+    log_audit(
+        request,
+        module=MODULE_STUDENTS,
+        activity="Student deleted",
+        audit_action=ACTION_DELETE,
+        target_record=f"Student: {adm}",
+    )
     messages.success(request, "Student deleted successfully!")
     return redirect(reverse('manage_student'))
 
 
 def delete_course(request, course_id):
     course = get_object_or_404(Course, id=course_id)
+    name = course.name
     try:
         course.delete()
+        log_audit(
+            request,
+            module=MODULE_COURSES,
+            activity="Course deleted",
+            audit_action=ACTION_DELETE,
+            target_record=name,
+        )
         messages.success(request, "Course deleted successfully!")
     except Exception:
         messages.error(
@@ -1161,15 +1514,31 @@ def delete_course(request, course_id):
 
 def delete_subject(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
+    label = f"{subject.name} ({subject.course.name if subject.course_id else ''})"
     subject.delete()
+    log_audit(
+        request,
+        module=MODULE_SUBJECTS,
+        activity="Subject deleted",
+        audit_action=ACTION_DELETE,
+        target_record=label,
+    )
     messages.success(request, "Subject deleted successfully!")
     return redirect(reverse('manage_subject'))
 
 
 def delete_session(request, session_id):
     session = get_object_or_404(Session, id=session_id)
+    label = session.intake_label
     try:
         session.delete()
+        log_audit(
+            request,
+            module=MODULE_SESSIONS,
+            activity="Session deleted",
+            audit_action=ACTION_DELETE,
+            target_record=label,
+        )
         messages.success(request, "Session deleted successfully!")
     except Exception:
         messages.error(

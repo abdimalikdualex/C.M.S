@@ -70,7 +70,25 @@
         </div>
         <!-- /.row -->
         <div class="row no-print mb-3">
-            <div class="col-12">
+            <div class="col-12 col-lg-6">
+                <div class="card card-outline card-info">
+                    <div class="card-header">
+                        <h3 class="card-title mb-0"><i class="fas fa-history mr-1"></i> Audit trail</h3>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="mb-2 small text-muted">Recent system activity (who did what). Full log, filters, and export are Superadmin-only.</p>
+                        <a href="{% url 'audit_trail' %}" class="btn btn-sm btn-info"><i class="fas fa-list"></i> Open audit trail</a>
+                        {% if recent_audit_logs %}
+                        <ul class="list-unstyled small mb-0 mt-2">
+                            {% for a in recent_audit_logs %}
+                            <li class="mb-1"><span class="text-muted">{{ a.created_at|date:"M j, H:i" }}</span> — {% firstof a.user_name a.user.email "—" %}: {{ a.activity|default:a.legacy_event|truncatechars:50 }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
                 <div class="card card-outline card-secondary">
                     <div class="card-header">
                         <h3 class="card-title mb-0"><i class="fas fa-chart-bar mr-1"></i> Reports — student registers</h3>

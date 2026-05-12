@@ -8,6 +8,8 @@ from django.utils import timezone
 
 from django.db.models import Sum
 from django.db.utils import OperationalError, ProgrammingError
+from django.core.exceptions import ValidationError
+import re
 import uuid
 
 from .money import max_zero_kes, quantize_kes
@@ -229,6 +231,27 @@ class Course(models.Model):
         super().save(*args, **kwargs)
 
 
+class AdmissionSequence(models.Model):
+    """
+    Per-year counter for EDH/YYYY/NNN admission numbers (sequence resets each calendar year).
+    """
+
+    year = models.PositiveIntegerField(primary_key=True)
+    last_value = models.PositiveIntegerField(
+        default=0,
+        help_text="Last sequence used for this year.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-year",)
+        verbose_name = "Admission sequence"
+        verbose_name_plural = "Admission sequences"
+
+    def __str__(self):
+        return f"{self.year} → up to {self.last_value:03d}"
+
+
 class Student(models.Model):
     admin = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.DO_NOTHING, null=True, blank=False)
@@ -239,8 +262,26 @@ class Student(models.Model):
         blank=False,
         help_text="Intake/session the student belongs to. Required.",
     )
-    student_id = models.CharField(max_length=32, unique=True, blank=True, default="")
+    student_id = models.CharField(
+        max_length=24,
+        unique=True,
+        blank=True,
+        default="",
+        help_text="Official admission number (EDH/YYYY/NNN). Assigned automatically; do not edit manually.",
+    )
     enrollment_date = models.DateField(default=timezone.now)
+
+    def clean(self):
+        super().clean()
+        sid = (self.student_id or "").strip()
+        if not sid:
+            return
+        if not re.fullmatch(r"EDH/\d{4}/\d+", sid):
+            raise ValidationError(
+                {
+                    "student_id": "Admission number must match EDH/YYYY/NNN (system-assigned only).",
+                }
+            )
 
     def __str__(self):
         return str(self.admin)
@@ -511,27 +552,73 @@ class Submission(models.Model):
 
 
 class AuditLog(models.Model):
-    action = models.CharField(max_length=120)
+    """
+    Append-only activity trail. New entries use audit_action + module + activity;
+    legacy rows may only set legacy_event (formerly `action`) and detail.
+    """
+
+    ACTION_CREATE = "create"
+    ACTION_UPDATE = "update"
+    ACTION_DELETE = "delete"
+    ACTION_LOGIN = "login"
+    ACTION_LOGOUT = "logout"
+    ACTION_EXPORT = "export"
+    ACTION_OTHER = "other"
+    ACTION_CHOICES = (
+        (ACTION_CREATE, "Create"),
+        (ACTION_UPDATE, "Update"),
+        (ACTION_DELETE, "Delete"),
+        (ACTION_LOGIN, "Login"),
+        (ACTION_LOGOUT, "Logout"),
+        (ACTION_EXPORT, "Export"),
+        (ACTION_OTHER, "Other"),
+    )
+
+    audit_action = models.CharField(
+        max_length=16,
+        choices=ACTION_CHOICES,
+        default=ACTION_OTHER,
+        db_index=True,
+    )
+    module = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    activity = models.CharField(max_length=255, blank=True, default="")
+    legacy_event = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Legacy machine key, e.g. student_registered (pre–audit trail v2).",
+    )
+    target_record = models.CharField(max_length=512, blank=True, default="")
     detail = models.TextField(blank=True, default="")
-    created_at = models.DateTimeField(auto_now_add=True)
+    user_name = models.CharField(max_length=255, blank=True, default="")
+    user_role = models.CharField(max_length=64, blank=True, default="")
+    ip_address = models.CharField(max_length=45, blank=True, default="")
     student = models.ForeignKey(
         Student,
         null=True,
+        blank=True,
         on_delete=models.SET_NULL,
         related_name="audit_logs",
     )
     user = models.ForeignKey(
         CustomUser,
         null=True,
+        blank=True,
         on_delete=models.SET_NULL,
         related_name="audit_actions",
     )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=("module", "-created_at")),
+            models.Index(fields=("audit_action", "-created_at")),
+        ]
 
     def __str__(self):
-        return f"{self.action} @ {self.created_at:%Y-%m-%d %H:%M}"
+        return f"{self.created_at:%Y-%m-%d %H:%M} {self.module or self.legacy_event} {self.activity or ''}"
+
 
 
 class EnrollmentFeeAudit(models.Model):
@@ -773,8 +860,8 @@ def save_user_profile(sender, instance, **kwargs):
 def ensure_student_id(sender, instance, created, **kwargs):
     if instance.student_id:
         return
-    # Kenyan-friendly, short, unique: STU-<YY><6chars>
-    year = timezone.now().strftime("%y")
-    token = uuid.uuid4().hex[:6].upper()
-    instance.student_id = f"STU-{year}{token}"
-    Student.objects.filter(pk=instance.pk).update(student_id=instance.student_id)
+    from .admission_numbers import allocate_next_admission_number
+
+    y = instance.enrollment_date.year if instance.enrollment_date else timezone.localdate().year
+    new_id = allocate_next_admission_number(y)
+    Student.objects.filter(pk=instance.pk).update(student_id=new_id)

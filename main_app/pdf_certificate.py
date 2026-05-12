@@ -128,9 +128,9 @@ def build_completion_certificate_pdf(
             ),
         )
     story.append(Spacer(1, 12 * mm))
-    sid = enr.student.student_id or f"id-{enr.student.pk}"
+    adm_no = (enr.student.student_id or "").strip() or "—"
     story.append(
-        Paragraph(_safe(f"Learner reference: {sid} · Record enrolment #{enr.pk}"), small),
+        Paragraph(_safe(f"Admission no.: {adm_no} · Enrolment record #{enr.pk}"), small),
     )
     doc.build(story)
     return buf.getvalue()

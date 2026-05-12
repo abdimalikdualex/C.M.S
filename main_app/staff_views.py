@@ -17,6 +17,15 @@ from .models import *
 from .money import format_money
 from .roles import require_admission_desk, require_instructor
 from .sms_notifications import notify_admission_confirmed
+from .audit import (
+    ACTION_CREATE,
+    ACTION_UPDATE,
+    MODULE_ATTENDANCE,
+    MODULE_ENROLLMENT,
+    MODULE_FEES,
+    MODULE_STUDENTS,
+    log_audit,
+)
 
 class _SuperadminPass:
     """Truthy sentinel returned by ``_require_staff_role`` for Superadmin users.
@@ -116,11 +125,17 @@ def admission_add_student(request):
                     session=session,
                     total_fee_override=effective_total_fee,
                 )
-                AuditLog.objects.create(
-                    action="student_registered",
-                    detail=f"Student {user.student.student_id} enrolled to {course.name if course else 'N/A'} by admission desk.",
+                log_audit(
+                    request,
+                    module=MODULE_STUDENTS,
+                    activity="Student registered",
+                    audit_action=ACTION_CREATE,
+                    target_record=f"Student: {user.student.student_id}",
+                    detail=(
+                        f"{user.student.student_id} enrolled to "
+                        f"{course.name if course else 'N/A'} (admission desk)."
+                    ),
                     student=user.student,
-                    user=request.user,
                 )
                 created_payment = None
                 if pay_amount and pay_amount > 0:
@@ -134,11 +149,17 @@ def admission_add_student(request):
                         note=pay_note,
                         created_by=request.user,
                     )
-                    AuditLog.objects.create(
-                        action="payment_recorded",
-                        detail=f"Payment {created_payment.receipt_no} amount KES {created_payment.amount} recorded.",
+                    log_audit(
+                        request,
+                        module=MODULE_FEES,
+                        activity="Payment recorded",
+                        audit_action=ACTION_CREATE,
+                        target_record=(
+                            f"Student: {user.student.student_id}; "
+                            f"Receipt: {created_payment.receipt_no}"
+                        ),
+                        detail=f"KES {created_payment.amount:,} recorded from admission desk.",
                         student=user.student,
-                        user=request.user,
                     )
                 try:
                     user.student.refresh_from_db()
@@ -366,6 +387,14 @@ def save_attendance(request):
             student = get_object_or_404(Student, id=student_dict.get('id'))
             attendance_report = AttendanceReport(student=student, attendance=attendance, status=student_dict.get('status'))
             attendance_report.save()
+        log_audit(
+            request,
+            module=MODULE_ATTENDANCE,
+            activity="Attendance marked",
+            audit_action=ACTION_CREATE,
+            target_record=f"{subject.name} · {date}",
+            detail=f"{session.intake_label} · {len(students)} learner(s)",
+        )
     except Exception as e:
         return None
 
@@ -417,6 +446,14 @@ def update_attendance(request):
             attendance_report = get_object_or_404(AttendanceReport, student=student, attendance=attendance)
             attendance_report.status = student_dict.get('status')
             attendance_report.save()
+        log_audit(
+            request,
+            module=MODULE_ATTENDANCE,
+            activity="Attendance updated",
+            audit_action=ACTION_UPDATE,
+            target_record=f"{attendance.subject.name if attendance.subject_id else ''} · {attendance.date}",
+            detail=f"Attendance id {attendance.pk}",
+        )
     except Exception as e:
         return None
 
@@ -663,11 +700,14 @@ def staff_record_payment(request):
                 note=form.cleaned_data.get("note") or "",
                 created_by=request.user,
             )
-            AuditLog.objects.create(
-                action="payment_recorded",
-                detail=f"Payment {payment.receipt_no} amount KES {payment.amount} recorded from desk.",
+            log_audit(
+                request,
+                module=MODULE_FEES,
+                activity="Payment recorded",
+                audit_action=ACTION_CREATE,
+                target_record=f"Student: {st.student_id}; Receipt: {payment.receipt_no}",
+                detail=f"KES {payment.amount:,} from finance desk.",
                 student=st,
-                user=request.user,
             )
             messages.success(request, "Payment recorded.")
             return redirect(reverse("staff_record_payment"))
@@ -720,11 +760,14 @@ def admission_enroll_existing_student(request):
                 note=pay_note,
                 created_by=request.user,
             )
-        AuditLog.objects.create(
-            action="enrollment_created",
-            detail=f"Student {student.student_id} enrolled in {course.name}.",
+        log_audit(
+            request,
+            module=MODULE_ENROLLMENT,
+            activity="Enrollment added",
+            audit_action=ACTION_CREATE,
+            target_record=f"Student: {student.student_id}; Course: {course.name}",
+            detail=f"Enrolled in {course.name} (admission desk).",
             student=student,
-            user=request.user,
         )
         messages.success(request, "Enrollment added successfully.")
         if created_payment:

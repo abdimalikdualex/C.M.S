@@ -87,7 +87,7 @@ def notify_admission_confirmed(student) -> None:
     cid = student.course.name if student.course_id else "TBC"
     msg = (
         f"{getattr(settings, 'COLLEGE_NAME', 'ELEVATE DIGITAL HUB')}: Hi {name}, you are enrolled in {cid}. "
-        f"Student ID: {student.student_id or 'pending'}."
+        f"Admission no.: {student.student_id or 'pending'}."
     )
     log_and_send_sms(
         to_phone=phone,

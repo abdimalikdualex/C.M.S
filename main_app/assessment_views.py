@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from .audit import ACTION_CREATE, ACTION_UPDATE, MODULE_ASSESSMENTS, log_audit
 from .forms import AssessmentForm, MentorNoteForm, SubmissionGradeForm
 from .models import Assessment, Enrollment, MentorNote, Staff, Student, Submission
 
@@ -57,6 +58,14 @@ def instructor_assessment_create(request):
         obj = form.save(commit=False)
         obj.instructor = staff
         obj.save()
+        log_audit(
+            request,
+            module=MODULE_ASSESSMENTS,
+            activity="Assessment created",
+            audit_action=ACTION_CREATE,
+            target_record=obj.title[:500],
+            detail=f"Course: {obj.course.name if obj.course_id else ''}",
+        )
         messages.success(request, "Assessment created.")
         return redirect(reverse("staff_assessment_submissions", kwargs={"pk": obj.pk}))
     return render(
@@ -79,6 +88,13 @@ def instructor_assessment_detail(request, pk):
     )
     if request.method == "POST" and form.is_valid():
         form.save()
+        log_audit(
+            request,
+            module=MODULE_ASSESSMENTS,
+            activity="Assessment updated",
+            audit_action=ACTION_UPDATE,
+            target_record=assessment.title[:500],
+        )
         messages.success(request, "Assessment updated.")
         return redirect(reverse("staff_assessment_detail", kwargs={"pk": pk}))
     return render(
@@ -175,6 +191,15 @@ def instructor_grade_submission(request, pk, sub_id):
         submission.grade = form.cleaned_data["grade"]
         submission.feedback = form.cleaned_data.get("feedback") or ""
         submission.save(update_fields=["grade", "feedback", "updated_at"])
+        log_audit(
+            request,
+            module=MODULE_ASSESSMENTS,
+            activity="Submission graded",
+            audit_action=ACTION_UPDATE,
+            target_record=f"{assessment.title}: {submission.student.student_id}",
+            detail=f"Grade {submission.grade}",
+            student=submission.student,
+        )
         messages.success(request, "Grade saved.")
         return redirect(reverse("staff_assessment_submissions", kwargs={"pk": pk}))
     return render(

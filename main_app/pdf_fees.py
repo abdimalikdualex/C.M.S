@@ -97,7 +97,7 @@ def build_payment_receipt_pdf(
         ["Receipt no.", payment.receipt_no or "—"],
         ["Date", payment.paid_at.strftime("%Y-%m-%d %H:%M") if payment.paid_at else "—"],
         ["Student", student.admin.get_full_name()],
-        ["Student ID", student.student_id or "—"],
+        ["Admission no.", student.student_id or "—"],
         ["Course", course_name],
     ]
     if payment.enrollment_id:
@@ -176,7 +176,7 @@ def build_fee_statement_pdf(
         enr = f"Enrolled: {ed.strftime('%Y-%m-%d')}<br/>"
     block = (
         f"<b>{_safe_para(student.admin.get_full_name())}</b><br/>"
-        f"Student ID: {_safe_para(sid)}<br/>{course_line}{enr}"
+        f"Admission no.: {_safe_para(sid)}<br/>{course_line}{enr}"
     )
     story.append(Paragraph(block, styles["Normal"]))
     story.append(Spacer(1, 6 * mm))

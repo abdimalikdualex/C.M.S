@@ -8,6 +8,15 @@
         <!-- Small boxes (Stat box) -->
         <div class="row">
             <div class="col-lg-3 col-6">
+                <div class="small-box bg-primary">
+                    <div class="inner">
+                        <h3 style="font-size: 1rem; word-break: break-all;">{% if learner.student_id %}{{ learner.student_id }}{% else %}—{% endif %}</h3>
+                        <p>Admission no.</p>
+                    </div>
+                    <div class="icon"><i class="nav-icon fas fa-id-card"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
                 <!-- small box -->
                 <div class="small-box bg-info">
                     <div class="inner">

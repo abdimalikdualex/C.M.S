@@ -3,6 +3,7 @@ from django.forms.widgets import DateInput, TextInput
 
 from .models import *
 from .money import WHOLE_KES_MSG
+from .admission_numbers import normalize_admission_input
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 import re
@@ -319,8 +320,8 @@ class RecordPaymentForm(forms.Form):
 
     lookup = forms.CharField(
         required=True,
-        label="Student ID or phone",
-        help_text="Use STU-… student ID or the phone number on file.",
+        label="Admission no. or phone",
+        help_text="Use EDH/YYYY/NNN (e.g. EDH/2026/001) or the phone number on file.",
     )
     course = forms.ModelChoiceField(
         required=False,
@@ -349,7 +350,7 @@ class RecordPaymentForm(forms.Form):
     def clean_lookup(self):
         raw = (self.cleaned_data.get("lookup") or "").strip()
         if not raw:
-            raise forms.ValidationError("Enter student ID or phone number.")
+            raise forms.ValidationError("Enter admission number or phone number.")
         return raw
 
     def clean(self):
@@ -361,14 +362,15 @@ class RecordPaymentForm(forms.Form):
         if phone.startswith("0") and len(phone) >= 10:
             phone = "254" + phone[1:]
         student = None
-        if raw.upper().startswith("STU-"):
-            student = Student.objects.filter(student_id__iexact=raw.strip()).select_related("admin").first()
+        norm_id = normalize_admission_input(raw)
+        if norm_id.upper().startswith("EDH/"):
+            student = Student.objects.filter(student_id__iexact=norm_id).select_related("admin").first()
         if student is None:
             student = Student.objects.filter(admin__phone_number=phone).select_related("admin").first()
         if student is None:
             student = Student.objects.filter(admin__phone_number__icontains=raw.strip()).first()
         if student is None:
-            raise forms.ValidationError("No student found for that ID or phone.")
+            raise forms.ValidationError("No student found for that admission number or phone.")
         cleaned["student"] = student
         picked_course = cleaned.get("course")
         enrollment_qs = Enrollment.objects.filter(student=student, status="active").select_related("course")
@@ -387,7 +389,7 @@ class RecordPaymentForm(forms.Form):
 
 
 class EnrollExistingStudentForm(forms.Form):
-    lookup = forms.CharField(required=True, label="Student ID or phone")
+    lookup = forms.CharField(required=True, label="Admission no. or phone")
     course = forms.ModelChoiceField(required=True, queryset=Course.objects.all().order_by("name"))
     session = forms.ModelChoiceField(required=True, queryset=Session.objects.none(), label="Session / intake")
     start_date = forms.DateField(required=False, widget=DateInput(attrs={"type": "date"}))
@@ -428,12 +430,15 @@ class EnrollExistingStudentForm(forms.Form):
         if phone.startswith("0") and len(phone) >= 10:
             phone = "254" + phone[1:]
         student = None
-        if raw.upper().startswith("STU-"):
-            student = Student.objects.filter(student_id__iexact=raw).select_related("admin").first()
+        norm_id = normalize_admission_input(raw)
+        if norm_id.upper().startswith("EDH/"):
+            student = Student.objects.filter(student_id__iexact=norm_id).select_related("admin").first()
         if student is None:
             student = Student.objects.filter(admin__phone_number=phone).select_related("admin").first()
         if student is None:
-            raise forms.ValidationError("No student found for that ID or phone.")
+            student = Student.objects.filter(admin__phone_number__icontains=raw.strip()).first()
+        if student is None:
+            raise forms.ValidationError("No student found for that admission number or phone.")
         course = cleaned.get("course")
         if Enrollment.objects.filter(student=student, course=course).exists():
             raise forms.ValidationError("Student is already enrolled in this course.")

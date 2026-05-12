@@ -10,13 +10,14 @@
         <p class="text-muted small mb-4">{{ hub_tagline }}</p>
         <h2 class="mb-4">Certificate of completion</h2>
         <p class="lead mb-1">This certifies that</p>
-        <h3 class="mb-4">
+        <h3 class="mb-2">
           {% if enrollment.student.admin.full_name %}
             {{ enrollment.student.admin.full_name }}
           {% else %}
             {{ enrollment.student.admin.get_full_name }}
           {% endif %}
         </h3>
+        <p class="small text-muted mb-4">Admission no. {% if enrollment.student.student_id %}{{ enrollment.student.student_id }}{% else %}—{% endif %}</p>
         <p class="mb-1">has successfully completed practical training in</p>
         <h4 class="text-primary mb-4">{{ enrollment.course.name }}</h4>
         {% if enrollment.course.skills_track %}
