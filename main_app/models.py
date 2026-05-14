@@ -595,12 +595,35 @@ class Assessment(models.Model):
 
 
 class Submission(models.Model):
+    REVIEW_SUBMITTED = "submitted"
+    REVIEW_REVIEWED = "reviewed"
+    REVIEW_APPROVED = "approved"
+    REVIEW_STATUS = (
+        (REVIEW_SUBMITTED, "Submitted — awaiting review"),
+        (REVIEW_REVIEWED, "Reviewed"),
+        (REVIEW_APPROVED, "Approved"),
+    )
+
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="submissions")
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="assessment_submissions")
-    file = models.FileField(upload_to="assessments/submissions/", blank=True, null=True)
+    file = models.FileField(
+        upload_to="assessments/submissions/",
+        blank=True,
+        null=True,
+        help_text="Primary file (legacy / first upload). Additional files use attachments.",
+    )
     text_answer = models.TextField(blank=True, default="")
+    github_url = models.URLField(max_length=500, blank=True, default="")
+    portfolio_url = models.URLField(max_length=500, blank=True, default="")
+    video_url = models.URLField(max_length=500, blank=True, default="")
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    review_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS,
+        default=REVIEW_SUBMITTED,
+        db_index=True,
+    )
     grade = models.IntegerField(null=True, blank=True)
     feedback = models.TextField(blank=True, default="")
 
@@ -612,6 +635,37 @@ class Submission(models.Model):
 
     def __str__(self):
         return f"{self.student} → {self.assessment}"
+
+    def student_facing_status(self) -> str:
+        """Pending | Submitted | Reviewed | Approved (for learner UI)."""
+        if self.review_status == self.REVIEW_APPROVED:
+            return "Approved"
+        if self.review_status == self.REVIEW_REVIEWED or self.grade is not None or (self.feedback or "").strip():
+            return "Reviewed"
+        return "Submitted"
+
+
+class SubmissionAttachment(models.Model):
+    """Extra files for one submission (multi-upload coursework)."""
+
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="assessments/submissions/extra/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"Attachment #{self.pk} for {self.submission_id}"
+
+    def is_image(self) -> bool:
+        from .assessment_submission import is_image_extension, ext_from_upload_name
+
+        return is_image_extension(ext_from_upload_name(self.file.name))
 
 
 class AuditLog(models.Model):

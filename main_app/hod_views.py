@@ -137,7 +137,13 @@ def admin_assessments(request):
         return redirect(reverse("login_page"))
     assessments = (
         Assessment.objects.select_related("course", "instructor__admin", "session")
-        .annotate(submission_count=Count("submissions"))
+        .annotate(
+            submission_count=Count("submissions"),
+            pending_review_count=Count(
+                "submissions",
+                filter=Q(submissions__review_status=Submission.REVIEW_SUBMITTED),
+            ),
+        )
         .order_by("-created_at")
     )
     return render(

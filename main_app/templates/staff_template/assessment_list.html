@@ -6,7 +6,7 @@
   <div class="container-fluid">
     <div class="row mb-2">
       <div class="col-md-12">
-        <a href="{% url 'staff_assessment_create' %}" class="btn btn-primary btn-sm">Create practical / assignment</a>
+        <a href="{% url 'staff_assessment_create' %}" class="btn btn-primary btn-sm">Create assignment</a>
       </div>
     </div>
     <div class="card card-dark">
@@ -20,6 +20,7 @@
               <th>Course</th>
               <th>Due</th>
               <th>Submissions</th>
+              <th>Awaiting review</th>
               <th></th>
             </tr>
           </thead>
@@ -31,13 +32,14 @@
               <td>{{ a.course.name }}</td>
               <td>{{ a.due_date|date:"d/m/Y h:i A" }}</td>
               <td>{{ a.sub_cnt }}</td>
+              <td>{% if a.pending_review_cnt %}<span class="badge badge-warning">{{ a.pending_review_cnt }}</span>{% else %}—{% endif %}</td>
               <td>
                 <a href="{% url 'staff_assessment_submissions' a.pk %}" class="btn btn-outline-secondary btn-sm">Submissions</a>
                 <a href="{% url 'staff_assessment_detail' a.pk %}" class="btn btn-outline-primary btn-sm">Edit</a>
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No practicals yet.</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">No assignments yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

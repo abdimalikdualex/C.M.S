@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+from datetime import timedelta
 
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
@@ -259,6 +260,21 @@ def staff_home(request):
         attendance_count = Attendance.objects.filter(subject=subject).count()
         subject_list.append(subject.name)
         attendance_list.append(attendance_count)
+    assessment_upcoming = 0
+    coursework_pending_review = 0
+    if staff.role == "instructor" and staff.pk:
+        from .models import Assessment, Submission
+
+        coursework_pending_review = Submission.objects.filter(
+            assessment__instructor=staff,
+            review_status=Submission.REVIEW_SUBMITTED,
+        ).count()
+        soon = timezone.now() + timedelta(days=14)
+        assessment_upcoming = Assessment.objects.filter(
+            instructor=staff,
+            due_date__gte=timezone.now(),
+            due_date__lte=soon,
+        ).count()
     context = {
         'page_title': 'Staff Panel - ' + str(staff.admin) + (f' ({course_label})' if course_label else ''),
         'total_students': total_students,
@@ -266,7 +282,10 @@ def staff_home(request):
         'total_leave': total_leave,
         'total_subject': total_subject,
         'subject_list': subject_list,
-        'attendance_list': attendance_list
+        'attendance_list': attendance_list,
+        'coursework_pending_review': coursework_pending_review,
+        'assessment_upcoming': assessment_upcoming,
+        'staff_is_instructor': staff.role == "instructor",
     }
     return render(request, 'staff_template/home_content.html', context)
 

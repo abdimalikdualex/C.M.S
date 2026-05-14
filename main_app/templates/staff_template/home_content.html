@@ -66,6 +66,28 @@
                 </div>
             </div>
             <!-- ./col -->
+            {% if staff_is_instructor %}
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ coursework_pending_review }}</h3>
+                        <p>Submissions to review</p>
+                    </div>
+                    <div class="icon"><i class="nav-icon fas fa-inbox"></i></div>
+                    <a href="{% url 'staff_assessment_list' %}" class="small-box-footer">Assignments <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-teal">
+                    <div class="inner">
+                        <h3>{{ assessment_upcoming }}</h3>
+                        <p>Deadlines (next 14 days)</p>
+                    </div>
+                    <div class="icon"><i class="nav-icon fas fa-clock"></i></div>
+                    <a href="{% url 'staff_assessment_list' %}" class="small-box-footer">Open list <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            {% endif %}
         </div>
         <!-- /.row -->
         <!-- Main row -->

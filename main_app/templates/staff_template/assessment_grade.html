@@ -7,23 +7,52 @@
     <div class="card card-dark">
       <div class="card-header"><h3 class="card-title">{{ page_title }}</h3></div>
       <div class="card-body">
-        <p><strong>{{ assessment.title }}</strong> — {{ submission.student.admin.get_full_name }}</p>
+        <p><strong>{{ assessment.title }}</strong> — {{ submission.student.admin.get_full_name }} ({{ submission.student.student_id }})</p>
+        <p class="small text-muted">Submitted {{ submission.submitted_at|date:"d/m/Y h:i A" }} · Status: {{ submission.get_review_status_display }}</p>
         {% if submission.text_answer %}
-        <div class="border rounded p-2 mb-2 small"><strong>Text</strong><br>{{ submission.text_answer|linebreaks }}</div>
+        <div class="border rounded p-2 mb-3 small"><strong>Learner notes</strong><br>{{ submission.text_answer|linebreaks }}</div>
+        {% endif %}
+        {% if submission.github_url %}
+        <p><a href="{{ submission.github_url }}" target="_blank" rel="noopener noreferrer">GitHub / repository</a></p>
+        {% endif %}
+        {% if submission.portfolio_url %}
+        <p><a href="{{ submission.portfolio_url }}" target="_blank" rel="noopener noreferrer">Portfolio / hosted project</a></p>
+        {% endif %}
+        {% if submission.video_url %}
+        <p><a href="{{ submission.video_url }}" target="_blank" rel="noopener noreferrer">Video / drive link</a></p>
         {% endif %}
         {% if submission.file %}
-        <p><a href="{{ submission.file.url }}" target="_blank" rel="noopener">Download submission file</a></p>
+        <p><a href="{{ submission.file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Download primary file</a></p>
         {% endif %}
+        {% for att in submission.attachments.all %}
+        <div class="mb-2">
+          {% if att.is_image %}
+          <a href="{{ att.file.url }}" target="_blank" rel="noopener"><img src="{{ att.file.url }}" alt="" class="img-fluid img-thumbnail" style="max-height:200px;"></a>
+          {% else %}
+          <a href="{{ att.file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Attachment {{ forloop.counter }}</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <hr>
         <form method="post">
           {% csrf_token %}
           {% for field in form %}
           <div class="form-group">
+            {% if field.name == 'mark_approved' %}
+            <div class="form-check">
+              {{ field }}
+              <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            </div>
+            {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+            {% else %}
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
+            {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+            {% endif %}
             {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           {% endfor %}
-          <button type="submit" class="btn btn-primary">Save grade</button>
+          <button type="submit" class="btn btn-primary">Save review</button>
           <a href="{% url 'staff_assessment_submissions' assessment.pk %}" class="btn btn-default">Cancel</a>
         </form>
       </div>

@@ -15,6 +15,7 @@
               <th>Instructor</th>
               <th>Due</th>
               <th>Submissions</th>
+              <th>Awaiting review</th>
             </tr>
           </thead>
           <tbody>
@@ -25,9 +26,10 @@
               <td>{{ a.instructor.admin.get_full_name }}</td>
               <td>{{ a.due_date|date:"d/m/Y h:i A" }}</td>
               <td>{{ a.submission_count }}</td>
+              <td>{% if a.pending_review_count %}<span class="badge badge-warning">{{ a.pending_review_count }}</span>{% else %}—{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted">No assessments yet.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">No assessments yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

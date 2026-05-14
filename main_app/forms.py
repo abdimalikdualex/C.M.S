@@ -1,10 +1,12 @@
 from django import forms
+from django.core.exceptions import ValidationError as DjValidationError
 from django.db.models import Q
 from django.forms.widgets import DateInput, TextInput
 
 from .models import *
 from .money import WHOLE_KES_MSG
 from .admission_numbers import normalize_admission_input
+from .assessment_submission import validate_submission_upload
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 import re
@@ -757,6 +759,20 @@ class AssessmentForm(FormSettings):
         self.fields["due_date"].help_text = (
             "Deadline in East Africa Time (Africa/Nairobi, UTC+3). The time you pick is stored as that local moment."
         )
+        if "file" in self.fields:
+            self.fields["file"].help_text = (
+                "Optional instructions or starter files for learners (PDF, DOCX, ZIP, images, etc.). Max 25 MB."
+            )
+
+    def clean_file(self):
+        f = self.cleaned_data.get("file")
+        if not f:
+            return f
+        try:
+            validate_submission_upload(f)
+        except DjValidationError as e:
+            raise forms.ValidationError(e.messages)
+        return f
 
     def clean_course(self):
         course = self.cleaned_data.get("course")
@@ -767,12 +783,28 @@ class AssessmentForm(FormSettings):
 
 
 class SubmissionGradeForm(forms.Form):
-    grade = forms.IntegerField(required=True, min_value=0, max_value=100)
-    feedback = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}))
+    grade = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=100,
+        help_text="Optional — leave blank if you are only leaving qualitative feedback.",
+    )
+    feedback = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+        help_text="Comments, improvement suggestions, and review notes for the learner.",
+    )
+    mark_approved = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Mark as approved",
+        help_text="Use when the coursework fully meets requirements (learners can no longer resubmit).",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["grade"].widget.attrs.setdefault("class", "form-control")
+        self.fields["mark_approved"].widget.attrs.setdefault("class", "form-check-input")
 
 
 class StudentHubProfileForm(FormSettings):

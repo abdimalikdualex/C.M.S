@@ -5,7 +5,7 @@
 <section class="content">
   <div class="container-fluid">
     <div class="mb-2">
-      <a href="{% url 'student_assessment_list' %}" class="btn btn-default btn-sm">← Practicals &amp; projects</a>
+      <a href="{% url 'student_assessment_list' %}" class="btn btn-default btn-sm">← My coursework</a>
     </div>
     <div class="card card-dark">
       <div class="card-header">
@@ -13,51 +13,96 @@
         <p class="mb-0 small text-muted">
           <span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span>
           {{ assessment.course.name }} · Due {{ assessment.due_date|date:"d/m/Y h:i A" }}
+          {% if late_not_closed %}<span class="badge badge-warning ml-1">Late — you can still submit</span>{% endif %}
         </p>
       </div>
       <div class="card-body">
-        {% if now > assessment.due_date %}
-        <p class="alert alert-warning py-2">This assessment is past the due date{% if assessment.closes_at_deadline %} and is closed for submission{% endif %}.</p>
+        {% if closed %}
+        <p class="alert alert-warning py-2 mb-3">This assignment is closed (past deadline with &quot;closes at deadline&quot; enabled).</p>
         {% endif %}
         {% if assessment.description %}
         <div class="mb-3">{{ assessment.description|linebreaks }}</div>
         {% endif %}
         {% if assessment.file %}
-        <p><a href="{{ assessment.file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Download instructions / attachment</a></p>
+        <p><a href="{{ assessment.file.url }}" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">Download instructions / resources</a></p>
         {% endif %}
 
-        {% if graded %}
-        <div class="border rounded p-3 bg-light">
+        {% if submission %}
+        <div class="border rounded p-3 bg-light mb-3">
+          <p class="mb-2"><strong>Your status:</strong>
+            {% if submission.review_status == 'approved' %}
+            <span class="badge badge-success">Approved</span>
+            {% elif submission.review_status == 'reviewed' or submission.grade is not None %}
+            <span class="badge badge-info">Reviewed</span>
+            {% else %}
+            <span class="badge badge-secondary">Submitted — awaiting review</span>
+            {% endif %}
+          </p>
+          <p class="small text-muted mb-2">Submitted {{ submission.submitted_at|date:"d/m/Y h:i A" }}{% if submission.updated_at != submission.submitted_at %} · Updated {{ submission.updated_at|date:"d/m/Y h:i A" }}{% endif %}</p>
+          {% if submission.grade is not None %}
           <p class="mb-1"><strong>Grade:</strong> {{ submission.grade }}</p>
-          {% if submission.feedback %}
-          <p class="mb-0"><strong>Feedback:</strong><br>{{ submission.feedback|linebreaks }}</p>
           {% endif %}
+          {% if submission.feedback %}
+          <p class="mb-1"><strong>Instructor feedback:</strong><br>{{ submission.feedback|linebreaks }}</p>
+          {% endif %}
+          {% if submission.text_answer %}
+          <div class="mb-2"><strong>Your notes:</strong><div class="small border rounded p-2 bg-white">{{ submission.text_answer|linebreaks }}</div></div>
+          {% endif %}
+          {% if submission.github_url %}
+          <p class="mb-1"><a href="{{ submission.github_url }}" target="_blank" rel="noopener noreferrer">GitHub / repository link</a></p>
+          {% endif %}
+          {% if submission.portfolio_url %}
+          <p class="mb-1"><a href="{{ submission.portfolio_url }}" target="_blank" rel="noopener noreferrer">Portfolio / project link</a></p>
+          {% endif %}
+          {% if submission.video_url %}
+          <p class="mb-1"><a href="{{ submission.video_url }}" target="_blank" rel="noopener noreferrer">Video / drive link</a></p>
+          {% endif %}
+          {% if submission.file %}
+          <p class="mb-1"><a href="{{ submission.file.url }}" target="_blank" rel="noopener">Primary file</a></p>
+          {% endif %}
+          {% for att in submission.attachments.all %}
+          <div class="mb-2">
+            {% if att.is_image %}
+            <a href="{{ att.file.url }}" target="_blank" rel="noopener"><img src="{{ att.file.url }}" alt="Submission" class="img-fluid img-thumbnail" style="max-height:220px;"></a>
+            {% else %}
+            <a href="{{ att.file.url }}" target="_blank" rel="noopener">File {{ forloop.counter }}</a>
+            {% endif %}
+          </div>
+          {% endfor %}
         </div>
-        {% elif submission %}
-        <p class="text-success">You submitted on {{ submission.submitted_at|date:"d/m/Y h:i A" }}.</p>
-        {% if submission.file %}<p><a href="{{ submission.file.url }}" target="_blank" rel="noopener">Your uploaded file</a></p>{% endif %}
-        {% if submission.text_answer %}<div class="border rounded p-2 small">{{ submission.text_answer|linebreaks }}</div>{% endif %}
-        {% if closed and not graded %}
-        <p class="text-warning small">Deadline has passed; you can no longer change this submission.</p>
-        {% elif not closed %}
-        <p class="small text-muted">Your work is awaiting grading.</p>
-        {% endif %}
         {% endif %}
 
-        {% if not graded and not closed %}
-        <h5 class="mt-3">Submit or update</h5>
+        {% if finalized %}
+        <p class="small text-muted">Your instructor has completed this review. You cannot change this submission.</p>
+        {% elif not closed %}
+        <h5 class="mt-3">{% if submission %}Update coursework{% else %}Submit coursework{% endif %}</h5>
+        <p class="small text-muted">Upload images, ZIPs, PDFs, spreadsheets, or short clips (max 25 MB each, up to 12 files). Links are ideal for large repos or videos.</p>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="form-group">
-            <label>Written answer</label>
-            <textarea name="text_answer" class="form-control" rows="6" placeholder="Type your answer here (optional if you attach a file).">{% if submission %}{{ submission.text_answer }}{% endif %}</textarea>
+            <label>Written answer / notes</label>
+            <textarea name="text_answer" class="form-control" rows="5" placeholder="Summary, reflection, or paste key points (optional if you attach files or links).">{% if submission %}{{ submission.text_answer }}{% endif %}</textarea>
           </div>
           <div class="form-group">
-            <label>Attach file (optional)</label>
-            <input type="file" name="file" class="form-control-file">
-            {% if submission and submission.file %}<small class="text-muted d-block">Current file will be replaced if you choose a new one.</small>{% endif %}
+            <label>GitHub or repository URL</label>
+            <input type="url" name="github_url" class="form-control" inputmode="url" placeholder="https://github.com/…" value="{% if submission %}{{ submission.github_url }}{% endif %}">
           </div>
-          <button type="submit" class="btn btn-primary">Submit</button>
+          <div class="form-group">
+            <label>Portfolio or hosted project URL</label>
+            <input type="url" name="portfolio_url" class="form-control" inputmode="url" placeholder="https://…" value="{% if submission %}{{ submission.portfolio_url }}{% endif %}">
+          </div>
+          <div class="form-group">
+            <label>Video or cloud storage link</label>
+            <input type="url" name="video_url" class="form-control" inputmode="url" placeholder="YouTube, Drive, Vimeo…" value="{% if submission %}{{ submission.video_url }}{% endif %}">
+          </div>
+          <div class="form-group">
+            <label>Files (multiple)</label>
+            <input type="file" name="files" class="form-control-file" multiple accept=".pdf,.zip,.rar,.7z,.jpg,.jpeg,.png,.gif,.webp,.psd,.py,.js,.html,.css,.txt,.csv,.xlsx,.xls,.ppt,.pptx,.doc,.docx,.mp4,.mov,.webm,.md,.json">
+            {% if submission %}
+            <small class="text-muted d-block">New files replace all previous uploads for this submission.</small>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary btn-block btn-sm d-md-inline-block">{% if submission %}Save updates{% else %}Submit{% endif %}</button>
         </form>
         {% elif closed and not submission %}
         <p class="text-danger">The deadline has passed and submissions are closed.</p>

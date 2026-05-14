@@ -3,6 +3,7 @@ import math
 from datetime import datetime
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpResponse, JsonResponse
@@ -13,6 +14,12 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .forms import *
 from .models import *
+from .assessment_submission import (
+    MAX_FILES_PER_SUBMISSION_POST,
+    normalize_optional_url,
+    validate_optional_http_url,
+    validate_submission_upload,
+)
 from .audit import ACTION_CREATE, MODULE_ASSIGNMENTS, log_audit
 from .datetime_display import format_receipt_day_stamp
 
@@ -54,6 +61,24 @@ def student_home(request):
         subject_name.append(subject.name)
         data_present.append(present_count)
         data_absent.append(absent_count)
+    cids = _student_enrolled_course_ids(student)
+    now = timezone.now()
+    coursework_upcoming = (
+        Assessment.objects.filter(course_id__in=cids, due_date__gte=now)
+        .select_related("course")
+        .order_by("due_date")[:6]
+    )
+    coursework_pending = []
+    for a in (
+        Assessment.objects.filter(course_id__in=cids)
+        .select_related("course")
+        .order_by("due_date")[:12]
+    ):
+        sub = Submission.objects.filter(assessment=a, student=student).first()
+        if sub is None:
+            coursework_pending.append({"assessment": a, "submission": None, "late": now > a.due_date})
+        elif sub.review_status == Submission.REVIEW_SUBMITTED and sub.grade is None:
+            coursework_pending.append({"assessment": a, "submission": sub, "late": now > a.due_date})
     context = {
         'total_attendance': total_attendance,
         'percent_present': percent_present,
@@ -69,6 +94,9 @@ def student_home(request):
         'fee_balance': fee_balance,
         'enrolled_course': student.course,
         'learner': student,
+        'coursework_upcoming': coursework_upcoming,
+        'coursework_pending': coursework_pending[:8],
+        'now': now,
     }
     return render(request, 'student_template/home_content.html', context)
 
@@ -378,18 +406,31 @@ def student_assessment_list(request):
     rows = []
     for a in assessments:
         sub = a.submissions.filter(student=student).first()
+        if sub is None:
+            status_key = "pending"
+        elif sub.review_status == Submission.REVIEW_APPROVED:
+            status_key = "approved"
+        elif (
+            sub.review_status == Submission.REVIEW_REVIEWED
+            or sub.grade is not None
+            or (sub.feedback or "").strip()
+        ):
+            status_key = "reviewed"
+        else:
+            status_key = "submitted"
         rows.append(
             {
                 "assessment": a,
                 "submission": sub,
                 "late": now > a.due_date,
+                "status_key": status_key,
             }
         )
     return render(
         request,
         "student_template/student_assessments_list.html",
         {
-            "page_title": "Practicals & projects",
+            "page_title": "My coursework",
             "rows": rows,
             "now": now,
         },
@@ -402,30 +443,87 @@ def student_assessment_detail(request, pk):
     if not _student_can_access_assessment(student, assessment):
         messages.error(request, "You are not assigned to this course.")
         return redirect(reverse("student_assessment_list"))
-    submission = assessment.submissions.filter(student=student).first()
+    submission = (
+        assessment.submissions.filter(student=student).prefetch_related("attachments").first()
+    )
     now = timezone.now()
     closed = assessment.closes_at_deadline and now > assessment.due_date
-    graded = submission and submission.grade is not None
+    finalized = bool(
+        submission
+        and (
+            submission.review_status
+            in (Submission.REVIEW_REVIEWED, Submission.REVIEW_APPROVED)
+            or submission.grade is not None
+        )
+    )
+    late_not_closed = (now > assessment.due_date) and not closed
 
     if request.method == "POST":
-        if closed or graded:
-            messages.error(request, "This assessment is no longer open for submission.")
+        if closed or finalized:
+            messages.error(request, "This coursework is no longer open for changes.")
             return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
         text = (request.POST.get("text_answer") or "").strip()
-        upload = request.FILES.get("file")
-        if not text and not upload:
-            messages.error(request, "Provide a written answer and/or attach a file.")
+        files = [f for f in request.FILES.getlist("files") if f and getattr(f, "name", None)]
+        legacy_upload = request.FILES.get("file")
+        if legacy_upload and legacy_upload not in files:
+            files = [legacy_upload] + files
+        if len(files) > MAX_FILES_PER_SUBMISSION_POST:
+            messages.error(
+                request,
+                f"Too many files at once (maximum {MAX_FILES_PER_SUBMISSION_POST}).",
+            )
             return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
+
+        gh = normalize_optional_url(request.POST.get("github_url"))
+        pu = normalize_optional_url(request.POST.get("portfolio_url"))
+        vu = normalize_optional_url(request.POST.get("video_url"))
+        try:
+            validate_optional_http_url("GitHub / repository link", gh)
+            validate_optional_http_url("Portfolio link", pu)
+            validate_optional_http_url("Video / drive link", vu)
+        except DjangoValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
+
+        has_existing = submission and (
+            submission.file
+            or submission.attachments.exists()
+            or (submission.github_url or submission.portfolio_url or submission.video_url)
+        )
+        if not text and not files and not gh and not pu and not vu and not has_existing:
+            messages.error(
+                request,
+                "Add your coursework: written answer, one or more files, and/or paste GitHub, portfolio, or video links.",
+            )
+            return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
+
+        try:
+            for uf in files:
+                validate_submission_upload(uf)
+        except DjangoValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return redirect(reverse("student_assessment_detail", kwargs={"pk": pk}))
+
         if submission is None:
             submission = Submission(assessment=assessment, student=student)
         submission.text_answer = text
-        if upload:
-            submission.file = upload
-        submission.save()
+        submission.github_url = gh
+        submission.portfolio_url = pu
+        submission.video_url = vu
+        submission.review_status = Submission.REVIEW_SUBMITTED
+        if files:
+            if submission.pk:
+                submission.attachments.all().delete()
+            submission.file = files[0]
+            submission.save()
+            for extra in files[1:]:
+                SubmissionAttachment.objects.create(submission=submission, file=extra)
+        else:
+            submission.save()
         log_audit(
             request,
             module=MODULE_ASSIGNMENTS,
-            activity="Assignment submission saved",
+            activity="Coursework submission saved",
             audit_action=ACTION_CREATE,
             target_record=f"{assessment.title}: {student.student_id}",
             student=student,
@@ -442,6 +540,7 @@ def student_assessment_detail(request, pk):
             "submission": submission,
             "now": now,
             "closed": closed,
-            "graded": graded,
+            "finalized": finalized,
+            "late_not_closed": late_not_closed,
         },
     )

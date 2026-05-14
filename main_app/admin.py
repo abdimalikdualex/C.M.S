@@ -84,6 +84,12 @@ admin.site.register(AuditLog, AuditLogAdmin)
 admin.site.register(StudentResult, StudentResultAdmin)
 admin.site.register(Assessment)
 admin.site.register(Submission)
+class SubmissionAttachmentAdmin(admin.ModelAdmin):
+    list_display = ("submission", "file", "created_at")
+    raw_id_fields = ("submission",)
+
+
+admin.site.register(SubmissionAttachment, SubmissionAttachmentAdmin)
 admin.site.register(StudentHubProfile)
 admin.site.register(HubEvent)
 admin.site.register(HubEventRegistration)

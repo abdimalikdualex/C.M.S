@@ -2,7 +2,7 @@
 Instructor assessments (homework / exercises): create, list submissions, grade.
 """
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -37,9 +37,18 @@ def instructor_assessment_list(request):
     if staff is None:
         return redirect(reverse("staff_home"))
     qs = Assessment.objects.filter(instructor=staff).select_related("course", "session")
-    assessments = qs.annotate(sub_cnt=Count("submissions")).order_by("-due_date")
+    assessments = (
+        qs.annotate(
+            sub_cnt=Count("submissions"),
+            pending_review_cnt=Count(
+                "submissions",
+                filter=Q(submissions__review_status=Submission.REVIEW_SUBMITTED),
+            ),
+        )
+        .order_by("-due_date")
+    )
     context = {
-        "page_title": "Practicals & assignments",
+        "page_title": "Coursework & assignments",
         "assessments": assessments,
         "staff": staff,
     }
@@ -117,17 +126,21 @@ def instructor_assessment_submissions(request, pk):
     students = _students_for_course(assessment.course)
     subs = {
         s.student_id: s
-        for s in assessment.submissions.select_related("student__admin").all()
+        for s in assessment.submissions.select_related("student__admin")
+        .prefetch_related("attachments")
+        .all()
     }
     rows = []
     for st in students:
         rows.append({"student": st, "submission": subs.get(st.pk)})
     now = timezone.now()
+    pending_review = sum(1 for r in rows if r["submission"] and r["submission"].review_status == Submission.REVIEW_SUBMITTED)
     context = {
         "page_title": f"Submissions — {assessment.title}",
         "assessment": assessment,
         "rows": rows,
         "now": now,
+        "pending_review": pending_review,
     }
     return render(request, "staff_template/assessment_submissions.html", context)
 
@@ -181,26 +194,37 @@ def instructor_grade_submission(request, pk, sub_id):
     if staff is None:
         return redirect(reverse("staff_home"))
     assessment = get_object_or_404(Assessment, pk=pk, instructor=staff)
-    submission = get_object_or_404(Submission, pk=sub_id, assessment=assessment)
+    submission = get_object_or_404(
+        Submission.objects.select_related("student__admin").prefetch_related("attachments"),
+        pk=sub_id,
+        assessment=assessment,
+    )
     grade_initial = {}
     if submission.grade is not None:
         grade_initial["grade"] = submission.grade
     grade_initial["feedback"] = submission.feedback or ""
+    grade_initial["mark_approved"] = submission.review_status == Submission.REVIEW_APPROVED
     form = SubmissionGradeForm(request.POST or None, initial=grade_initial)
     if request.method == "POST" and form.is_valid():
-        submission.grade = form.cleaned_data["grade"]
-        submission.feedback = form.cleaned_data.get("feedback") or ""
-        submission.save(update_fields=["grade", "feedback", "updated_at"])
+        submission.grade = form.cleaned_data.get("grade")
+        submission.feedback = (form.cleaned_data.get("feedback") or "").strip()
+        if form.cleaned_data.get("mark_approved"):
+            submission.review_status = Submission.REVIEW_APPROVED
+        elif submission.feedback or submission.grade is not None:
+            submission.review_status = Submission.REVIEW_REVIEWED
+        else:
+            submission.review_status = Submission.REVIEW_SUBMITTED
+        submission.save(update_fields=["grade", "feedback", "review_status", "updated_at"])
         log_audit(
             request,
             module=MODULE_ASSESSMENTS,
-            activity="Submission graded",
+            activity="Submission reviewed",
             audit_action=ACTION_UPDATE,
             target_record=f"{assessment.title}: {submission.student.student_id}",
-            detail=f"Grade {submission.grade}",
+            detail=f"Status {submission.get_review_status_display()} · grade {submission.grade}",
             student=submission.student,
         )
-        messages.success(request, "Grade saved.")
+        messages.success(request, "Review saved.")
         return redirect(reverse("staff_assessment_submissions", kwargs={"pk": pk}))
     return render(
         request,

@@ -14,6 +14,7 @@
         <p class="mb-0 small text-muted"><span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span> · Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"d/m/Y h:i A" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
       </div>
       <div class="card-body">
+        <p class="mb-2 small text-muted">{% if pending_review %}<span class="badge badge-warning">{{ pending_review }} awaiting review</span>{% else %}All caught up — no submissions awaiting review.{% endif %}</p>
         {% if assessment.file %}
         <p><a href="{{ assessment.file.url }}" target="_blank" rel="noopener">Download instruction file</a></p>
         {% endif %}
@@ -29,8 +30,8 @@
           <thead class="thead-light">
             <tr>
               <th>Student</th>
-              <th>Status</th>
-              <th>Submitted</th>
+              <th>Progress</th>
+              <th>Submitted work</th>
               <th>Grade</th>
               <th></th>
             </tr>
@@ -41,7 +42,13 @@
               <td>{{ row.student.admin.get_full_name }} ({{ row.student.student_id }})</td>
               <td>
                 {% if row.submission %}
-                  Submitted
+                  {% if row.submission.review_status == 'approved' %}
+                  <span class="badge badge-success">Approved</span>
+                  {% elif row.submission.review_status == 'reviewed' %}
+                  <span class="badge badge-info">Reviewed</span>
+                  {% else %}
+                  <span class="badge badge-secondary">Awaiting review</span>
+                  {% endif %}
                 {% else %}
                   <span class="text-muted">Not submitted</span>
                 {% endif %}
@@ -50,13 +57,19 @@
                 {% if row.submission %}
                   {{ row.submission.submitted_at|date:"d/m/Y h:i A" }}
                   {% if row.submission.file %}<br><a href="{{ row.submission.file.url }}" target="_blank" rel="noopener">File</a>{% endif %}
+                  {% for att in row.submission.attachments.all %}
+                  <br><a href="{{ att.file.url }}" target="_blank" rel="noopener">+File {{ forloop.counter }}</a>
+                  {% endfor %}
+                  {% if row.submission.github_url %}<br><a href="{{ row.submission.github_url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}
+                  {% if row.submission.portfolio_url %}<br><a href="{{ row.submission.portfolio_url }}" target="_blank" rel="noopener">Portfolio</a>{% endif %}
+                  {% if row.submission.video_url %}<br><a href="{{ row.submission.video_url }}" target="_blank" rel="noopener">Video</a>{% endif %}
                   {% if row.submission.text_answer %}<br><span class="small">{{ row.submission.text_answer|truncatewords:20 }}</span>{% endif %}
                 {% else %}—{% endif %}
               </td>
-              <td>{% if row.submission and row.submission.grade is not None %}{{ row.submission.grade }}{% elif row.submission %}Pending{% else %}—{% endif %}</td>
+              <td>{% if row.submission and row.submission.grade is not None %}{{ row.submission.grade }}{% elif row.submission %}—{% else %}—{% endif %}</td>
               <td>
                 {% if row.submission %}
-                <a href="{% url 'staff_assessment_grade' assessment.pk row.submission.pk %}" class="btn btn-outline-success btn-sm">Grade</a>
+                <a href="{% url 'staff_assessment_grade' assessment.pk row.submission.pk %}" class="btn btn-outline-success btn-sm">Review</a>
                 {% endif %}
               </td>
             </tr>
