@@ -35,12 +35,12 @@
                                  
                                       
                                       {% if feedback.reply == "" %}
-                                      <td>{{feedback.created_at}}</td>
+                                      <td>{{feedback.created_at|date:"d/m/Y h:i A"}}</td>
                                       <td><span  class='badge badge-warning'>Pending Response</span></td>
                                            <td> <button data-toggle = "modal" data-target = "#reply_modal" value="{{feedback.id}}" class="btn btn-success reply_open_modal">Reply</button>
                                           {% else %}
-                                          <td>{{feedback.created_at}}</td>
-                                          <td>{{feedback.updated_at}}</td>
+                                          <td>{{feedback.created_at|date:"d/m/Y h:i A"}}</td>
+                                          <td>{{feedback.updated_at|date:"d/m/Y h:i A"}}</td>
                                             <td>{{feedback.reply}}</td>
                                       {% endif %}
                                           

@@ -29,8 +29,8 @@
             {% for s in sessions %}
             <tr>
               <td>{{ s.intake_label }}</td>
-              <td>{{ s.start_year|date:"Y-m-d" }}</td>
-              <td>{{ s.end_year|date:"Y-m-d" }}</td>
+              <td>{{ s.start_year|date:"d/m/Y" }}</td>
+              <td>{{ s.end_year|date:"d/m/Y" }}</td>
               <td>
                 {% if s.is_active %}
                   <span class="badge badge-success">Active</span>

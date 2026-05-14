@@ -1,5 +1,5 @@
 {% extends 'main_app/base.html' %}
-{% load static %}
+{% load static datetime_tags %}
 {% block page_title %}{{page_title}}{% endblock page_title %}
 
 {% block content %}
@@ -31,7 +31,7 @@
         {% for leave in leave_history %}
         <tr>
             <td>{{forloop.counter}}</td>
-            <td>{{leave.date}}</td>
+            <td>{{ leave.date|eat_date }}</td>
               <td>{{leave.message}}</td>
               <td>
                   

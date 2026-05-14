@@ -42,7 +42,7 @@
                   {% endif %}
                       
               </td>
-              <td>{{feedback.created_at}}</td>
+              <td>{{ feedback.created_at|date:"d/m/Y h:i A" }}</td>
             </tr>
             {% endfor %}
         </table>

@@ -80,7 +80,7 @@
               <td>{{ r.total_score|floatformat:1 }}</td>
               <td>{{ r.grade }}</td>
               <td>{% if r.session %}{{ r.session }}{% else %}—{% endif %}</td>
-              <td>{{ r.updated_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ r.updated_at|date:"d/m/Y h:i A" }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="10" class="text-center text-muted">No results match these filters.</td></tr>

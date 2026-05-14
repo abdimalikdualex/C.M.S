@@ -74,7 +74,7 @@
             <tbody>
               {% for row in page_obj %}
               <tr>
-                <td class="text-nowrap small">{{ row.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-nowrap small">{{ row.created_at|date:"d/m/Y h:i A" }}</td>
                 <td class="small">{{ row.user_name|default:"—" }}</td>
                 <td class="small">{{ row.user_role|default:"—" }}</td>
                 <td class="small">{{ row.module|default:"—" }}</td>

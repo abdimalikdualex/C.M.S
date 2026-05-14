@@ -26,12 +26,12 @@
       {% if college_location %}<div class="receipt-meta">{{ college_location }}</div>{% endif %}
       <div class="receipt-meta">Payment receipt</div>
       <div class="receipt-row"><span class="receipt-label">Receipt no.</span><span>{{ payment.receipt_no }}</span></div>
-      <div class="receipt-row"><span class="receipt-label">Date</span><span>{{ payment.paid_at|date:"Y-m-d H:i" }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Date</span><span>{{ payment.paid_at|date:"d/m/Y h:i A" }}</span></div>
       <div class="receipt-row"><span class="receipt-label">Student</span><span>{{ student.admin.get_full_name }}</span></div>
       <div class="receipt-row"><span class="receipt-label">Admission no.</span><span>{{ student.student_id }}</span></div>
       <div class="receipt-row"><span class="receipt-label">Course</span><span>{% if payment.enrollment %}{{ payment.enrollment.course.name }}{% elif payment.course %}{{ payment.course.name }}{% elif student.course %}{{ student.course.name }}{% else %}—{% endif %}</span></div>
       {% if payment.enrollment %}
-      <div class="receipt-row"><span class="receipt-label">Enrollment start</span><span>{{ payment.enrollment.start_date|date:"Y-m-d" }}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Enrollment start</span><span>{{ payment.enrollment.start_date|date:"d/m/Y" }}</span></div>
       {% endif %}
       <div class="receipt-row"><span class="receipt-label">Amount (KES)</span><span><strong>{{ payment.amount|kes_intcomma }}</strong></span></div>
       <div class="receipt-row"><span class="receipt-label">Mode</span><span>{{ payment.get_mode_display }}</span></div>

@@ -8,6 +8,7 @@ from itertools import groupby
 from django.db.models import Q
 from django.utils import timezone
 
+from .datetime_display import format_date
 from .models import Student
 
 
@@ -45,7 +46,7 @@ def describe_export_filters(request) -> str:
     if GET.get("pending") == "1":
         parts.append("Outstanding fee balance only")
     if GET.get("new_today") == "1":
-        parts.append(f"Enrolled today ({timezone.localdate():%Y-%m-%d})")
+        parts.append(f"Enrolled today ({format_date(timezone.localdate())})")
     gb = (GET.get("group_by") or "").strip()
     if gb == "course":
         parts.append("Grouped by course")
@@ -120,7 +121,7 @@ def student_row_cells(st: Student) -> list[str]:
     sess = st.session.intake_label if st.session_id else "—"
     phone = (st.admin.phone_number or "").strip() or "—"
     reg = (st.student_id or "").strip() or f"id-{st.pk}"
-    enr_date = st.enrollment_date.strftime("%Y-%m-%d") if st.enrollment_date else "—"
+    enr_date = format_date(st.enrollment_date) if st.enrollment_date else "—"
     try:
         bal = st.balance()
     except Exception:
@@ -154,7 +155,7 @@ def enrollment_row_cells(enrollment) -> list[str]:
     phone = (adm.phone_number or "").strip() or "—"
     course = enrollment.course.name if enrollment.course_id else "—"
     sess = enrollment.session.intake_label if enrollment.session_id else "—"
-    start = enrollment.start_date.strftime("%Y-%m-%d") if enrollment.start_date else "—"
+    start = format_date(enrollment.start_date) if enrollment.start_date else "—"
     stat = enrollment.get_status_display()
     try:
         bal = enrollment.balance_due

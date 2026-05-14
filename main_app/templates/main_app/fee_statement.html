@@ -27,7 +27,7 @@
       <p><strong>{{ student.admin.get_full_name }}</strong><br>
         Admission no.: {{ student.student_id }}<br>
         {% if student.course %}Course: {{ student.course.name }}<br>{% endif %}
-        {% if student.enrollment_date %}Enrolled: {{ student.enrollment_date|date:"Y-m-d" }}{% endif %}
+        {% if student.enrollment_date %}Enrolled: {{ student.enrollment_date|date:"d/m/Y" }}{% endif %}
       </p>
       <div class="stmt-summary">
         <div class="d-flex justify-content-between"><span>Total course fee (KES)</span><span>{{ total_due|kes_intcomma }}</span></div>
@@ -42,7 +42,7 @@
             {% for e in enrollments %}
             <tr>
               <td>{{ e.course.name }}</td>
-              <td>{{ e.start_date|date:"Y-m-d" }}</td>
+              <td>{{ e.start_date|date:"d/m/Y" }}</td>
               <td>{{ e.total_fee|kes_intcomma }}</td>
               <td>{{ e.amount_paid|kes_intcomma }}</td>
               <td>{{ e.balance_due|kes_intcomma }}</td>
@@ -71,7 +71,7 @@
           <tbody>
             {% for p in payments %}
             <tr>
-              <td>{{ p.paid_at|date:"Y-m-d" }}</td>
+              <td>{{ p.paid_at|date:"d/m/Y h:i A" }}</td>
               <td>{% if p.enrollment %}{{ p.enrollment.course.name }}{% elif p.course %}{{ p.course.name }}{% else %}—{% endif %}</td>
               <td>
                 {{ p.receipt_no|default:"—" }}

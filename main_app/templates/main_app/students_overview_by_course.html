@@ -90,7 +90,7 @@
                 <tr>
                   <td>{{ e.student.admin.get_full_name }}</td>
                   <td>{{ e.student.admin.phone_number|default:"—" }}</td>
-                  <td>{{ e.start_date|date:"Y-m-d" }}</td>
+                  <td>{{ e.start_date|date:"d/m/Y" }}</td>
                   <td>{{ e.get_status_display }}</td>
                   <td>{{ e.total_fee|kes_intcomma }}</td>
                   <td>{{ e.paid_total|kes_intcomma }}</td>

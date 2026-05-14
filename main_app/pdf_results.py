@@ -13,6 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .datetime_display import format_dt
 from .models import Student
 
 
@@ -66,7 +67,7 @@ def build_results_register_pdf(
         story.append(Paragraph(_safe(college_location), styles["Normal"]))
     story.append(
         Paragraph(
-            _safe(f"Generated: {timezone.localtime():%Y-%m-%d %H:%M} · Rows: {len(rows)}"),
+            _safe(f"Generated: {format_dt(timezone.now())} · Rows: {len(rows)}"),
             styles["Normal"],
         )
     )
@@ -145,7 +146,7 @@ def build_student_result_slip_pdf(
     block = (
         f"<b>{_safe(nm)}</b><br/>"
         f"Admission no.: {_safe(adm)}<br/>"
-        f"Generated: {_safe(timezone.localtime().strftime('%Y-%m-%d %H:%M'))}"
+        f"Generated: {_safe(format_dt(timezone.now()))}"
     )
     story.append(Paragraph(block, styles["Normal"]))
     story.append(Spacer(1, 5 * mm))

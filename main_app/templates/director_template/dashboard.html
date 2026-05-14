@@ -10,7 +10,7 @@
     <div class="alert alert-info py-2 mb-3">
       <i class="fas fa-calendar-check"></i>
       Active session: <strong>{{ current_session.intake_label }}</strong>
-      ({{ current_session.start_year|date:"Y-m-d" }} → {{ current_session.end_year|date:"Y-m-d" }})
+      ({{ current_session.start_year|date:"d/m/Y" }} → {{ current_session.end_year|date:"d/m/Y" }})
     </div>
     {% else %}
     <div class="alert alert-warning py-2 mb-3">
@@ -69,8 +69,8 @@
             {% if current_session %}
               <p class="mb-1"><strong>{{ current_session.intake_label }}</strong></p>
               <p class="mb-1 text-muted small">
-                {{ current_session.start_year|date:"Y-m-d" }} →
-                {{ current_session.end_year|date:"Y-m-d" }}
+                {{ current_session.start_year|date:"d/m/Y" }} →
+                {{ current_session.end_year|date:"d/m/Y" }}
               </p>
               <p class="mb-0">Revenue this session: <strong>KES {{ revenue_current_session|kes_intcomma }}</strong></p>
             {% else %}
@@ -97,7 +97,7 @@
                   <td>{{ p.student.admin.get_full_name }}</td>
                   <td>{{ p.course.name|default:"—" }}</td>
                   <td class="text-right">{{ p.amount|kes_intcomma }}</td>
-                  <td>{{ p.paid_at|date:"Y-m-d" }}</td>
+                  <td>{{ p.paid_at|date:"d/m/Y h:i A" }}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="text-center text-muted py-3">No payments recorded yet.</td></tr>

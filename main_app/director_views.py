@@ -22,6 +22,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from .datetime_display import format_date, format_dt
 from .models import (
     Attendance,
     AttendanceReport,
@@ -240,7 +241,7 @@ def director_report_students_csv(request):
                 s.admin.phone_number or "",
                 s.course.name if s.course_id else "",
                 s.session.intake_label if s.session_id else "",
-                s.enrollment_date.strftime("%Y-%m-%d") if s.enrollment_date else "",
+                format_date(s.enrollment_date) if s.enrollment_date else "",
             ]
         )
     return _csv_response(rows, "students.csv")
@@ -251,7 +252,7 @@ def director_report_finance_csv(request):
     snapshot = _kpi_snapshot()
     rows = [
         ["ELEVATE DIGITAL HUB — ICT Hub finance summary"],
-        ["generated_at", timezone.now().strftime("%Y-%m-%d %H:%M")],
+        ["generated_at", format_dt(timezone.now())],
         ["total_students", snapshot["total_students"]],
         ["active_courses", snapshot["active_courses"]],
         ["active_sessions", snapshot["active_sessions"]],

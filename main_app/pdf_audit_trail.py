@@ -13,6 +13,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .datetime_display import format_dt
 from .models import AuditLog
 
 
@@ -50,7 +51,7 @@ def build_audit_trail_pdf(rows: list[AuditLog], *, college_name: str, filters_no
     story.append(Paragraph(_safe(f"{college_name} — Audit trail"), styles["Title"]))
     story.append(
         Paragraph(
-            _safe(f"Generated {timezone.localtime():%Y-%m-%d %H:%M} · Rows: {len(rows)}"),
+            _safe(f"Generated {format_dt(timezone.now())} · Rows: {len(rows)}"),
             styles["Normal"],
         )
     )
@@ -63,7 +64,7 @@ def build_audit_trail_pdf(rows: list[AuditLog], *, college_name: str, filters_no
     for r in rows:
         data.append(
             [
-                _safe(r.created_at.strftime("%Y-%m-%d %H:%M")),
+                _safe(format_dt(r.created_at)),
                 _safe(r.user_name),
                 _safe(r.user_role),
                 _safe(r.module),

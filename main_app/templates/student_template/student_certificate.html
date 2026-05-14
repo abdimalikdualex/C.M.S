@@ -25,7 +25,7 @@
         {% endif %}
         <p class="mb-1">Intake: {{ enrollment.session.intake_label }}</p>
         {% if enrollment.completed_on %}
-        <p>Completed on {{ enrollment.completed_on|date:"F j, Y" }}.</p>
+        <p>Completed on {{ enrollment.completed_on|date:"d F Y" }}.</p>
         {% endif %}
         <hr class="my-5" style="max-width: 320px; margin-left: auto; margin-right: auto;">
         <p class="small text-muted mb-0">ELEVATE DIGITAL HUB — practical ICT &amp; digital skills</p>

@@ -13,6 +13,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer
 
+from .datetime_display import format_date
 from .models import Enrollment
 
 
@@ -123,7 +124,7 @@ def build_completion_certificate_pdf(
     if enr.completed_on:
         story.append(
             Paragraph(
-                _safe(f"Completion date: {enr.completed_on.strftime('%B %d, %Y')}"),
+                _safe(f"Completion date: {format_date(enr.completed_on, long=True)}"),
                 body,
             ),
         )

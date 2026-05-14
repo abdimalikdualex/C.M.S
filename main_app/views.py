@@ -19,33 +19,65 @@ def doLogin(request, **kwargs):
     if request.method != 'POST':
         return HttpResponse("<h4>Denied</h4>")
     else:
-        email = (request.POST.get("email") or "").strip()
-        password = request.POST.get("password")
-        user = authenticate(request, username=email, password=password)
+        credential = (request.POST.get("login") or request.POST.get("email") or "").strip()
+        password = (request.POST.get("password") or "").strip()
+
+        if not credential or not password:
+            messages.error(
+                request,
+                "Enter your admission number and password (staff: use your work email).",
+            )
+            return redirect("/")
+
+        user = authenticate(request, username=credential, password=password)
 
         if user is not None:
             login(request, user)
+            target = credential
+            if str(getattr(user, "user_type", "") or "").strip() == "3":
+                try:
+                    target = Student.objects.only("student_id").get(admin=user).student_id or (
+                        user.email or credential
+                    )
+                except Student.DoesNotExist:
+                    target = user.email or credential
             log_audit(
                 request,
                 module=MODULE_AUTH,
                 activity="User logged in",
                 audit_action=ACTION_LOGIN,
-                target_record=user.email,
+                target_record=target,
             )
             return redirect(get_post_login_redirect_url(user))
+
+        if "@" in credential and Student.objects.filter(admin__email__iexact=credential).exists():
+            messages.error(
+                request,
+                "Use your admission number (EDH/YYYY/XXX), not your email, to sign in.",
+            )
+        elif "@" in credential:
+            messages.error(request, "Invalid email or password")
         else:
-            messages.error(request, "Invalid details")
-            return redirect("/")
+            messages.error(request, "Invalid Admission Number or Password")
+        return redirect("/")
 
 
 def logout_user(request):
     if getattr(request.user, "is_authenticated", False):
+        ut = str(getattr(request.user, "user_type", "") or "").strip()
+        if ut == "3":
+            try:
+                rec = Student.objects.only("student_id").get(admin=request.user).student_id
+            except Student.DoesNotExist:
+                rec = request.user.email or ""
+        else:
+            rec = request.user.email or ""
         log_audit(
             request,
             module=MODULE_AUTH,
             activity="User logged out",
             audit_action=ACTION_LOGOUT,
-            target_record=request.user.email,
+            target_record=rec,
         )
     logout(request)
     return redirect("/")

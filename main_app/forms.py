@@ -169,7 +169,7 @@ class StudentForm(CustomUserForm):
         self.fields["session"].required = True
         self.fields["session"].queryset = Session.objects.latest_first()
         self.fields["session"].empty_label = "Select intake/session"
-        self.fields["enrollment_date"].initial = timezone.now().date()
+        self.fields["enrollment_date"].initial = timezone.localdate()
         if is_new_student:
             self.fields["course"].required = True
             self.fields["first_name"].required = False
@@ -413,7 +413,7 @@ class EnrollExistingStudentForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["start_date"].initial = timezone.now().date()
+        self.fields["start_date"].initial = timezone.localdate()
         self.fields["session"].queryset = Session.objects.latest_first()
         self.fields["session"].empty_label = "Select intake/session"
         active_session = Session.objects.active().first()
@@ -522,12 +522,14 @@ class FeedbackStudentForm(FormSettings):
 
 
 class StudentEditForm(CustomUserForm):
+    """Learner self-service: no email field — portal login is admission number only."""
+
     def __init__(self, *args, **kwargs):
         super(StudentEditForm, self).__init__(*args, **kwargs)
 
     class Meta(CustomUserForm.Meta):
         model = Student
-        fields = CustomUserForm.Meta.fields 
+        fields = [f for f in CustomUserForm.Meta.fields if f != "email"] 
 
 
 class StaffEditForm(CustomUserForm):
@@ -752,6 +754,9 @@ class AssessmentForm(FormSettings):
         self.fields["session"].queryset = Session.objects.active_or_latest()
         self.fields["session"].empty_label = "Select intake/session"
         self.fields["task_kind"].help_text = "Practical work type — labs, homework, projects, or capstones."
+        self.fields["due_date"].help_text = (
+            "Deadline in East Africa Time (Africa/Nairobi, UTC+3). The time you pick is stored as that local moment."
+        )
 
     def clean_course(self):
         course = self.cleaned_data.get("course")
@@ -826,6 +831,10 @@ class HubEventForm(FormSettings):
                 self.fields[fld].required = True
             else:
                 self.fields[fld].required = False
+        self.fields["starts_at"].help_text = (
+            "East Africa Time (Africa/Nairobi, UTC+3). Start is required; end is optional."
+        )
+        self.fields["ends_at"].help_text = "Optional end time, same timezone as start."
 
 
 class MentorNoteForm(FormSettings):

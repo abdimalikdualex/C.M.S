@@ -94,6 +94,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
+    'django.middleware.timezone.TimezoneMiddleware',
+    'main_app.middleware.ActivateKenyaTimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -118,6 +121,8 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.timezone',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'main_app.context_processors.staff_role',
@@ -172,18 +177,21 @@ else:
     ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/3.1/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+# Internationalization & time (ELEVATE DIGITAL HUB — Kenya, EAT / UTC+3)
+# https://docs.djangoproject.com/en/4.2/topics/i18n/timezones/
+#
+# Datetimes are stored in UTC in the database (USE_TZ=True); the active
+# timezone for each request is forced to Africa/Nairobi via middleware so
+# all display, date-only filters, and naive form input are interpreted as
+# Kenyan local time — never the hosting server's local clock.
+LANGUAGE_CODE = 'en-gb'
+TIME_ZONE = 'Africa/Nairobi'
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
+FORMAT_MODULE_PATH = [
+    'main_app.formats',
+]
 
 
 # Static files (CSS, JavaScript, Images)
@@ -197,9 +205,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 AUTH_USER_MODEL = 'main_app.CustomUser'
 AUTHENTICATION_BACKENDS = ['main_app.EmailBackend.EmailBackend']
-TIME_ZONE = 'Africa/Lagos'
-
-# EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 # EMAIL_FILE_PATH = os.path.join(BASE_DIR, "sent_mails")
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

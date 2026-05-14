@@ -38,7 +38,13 @@
                 <form action="doLogin/" method="post">
                     {% csrf_token %}
                     <div class="form-group">
-                        <input required type="email" name='email' class="form-control input-field" placeholder="Email">
+                        <label for="id_login_identifier" class="d-block mb-1"><strong>Admission Number</strong></label>
+                        <input id="id_login_identifier" required type="text" name="login" autocomplete="username"
+                            class="form-control input-field"
+                            placeholder="Enter Admission Number"
+                            autocapitalize="none" spellcheck="false"
+                            inputmode="text">
+                        <small class="form-text text-muted">Students: use your official ID (e.g. EDH/2026/001). Staff and administrators: use your registered email.</small>
                     </div>
                     <div class="form-group">
                         <input required type="password" name='password' class="form-control input-field" placeholder="Password">

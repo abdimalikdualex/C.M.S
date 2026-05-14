@@ -37,6 +37,7 @@ from .audit import (
     KNOWN_MODULES,
     log_audit,
 )
+from .datetime_display import format_dt, format_filename_ts
 from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
 from .money import FEE_EDIT_VALIDATION_MSG, parse_post_whole_kes
@@ -246,7 +247,7 @@ def admin_results_export_csv(request):
                 r.grade,
                 r.session.intake_label if r.session_id else "",
                 (r.remarks or "")[:200],
-                r.updated_at.strftime("%Y-%m-%d %H:%M"),
+                format_dt(r.updated_at),
             ]
         )
     log_audit(
@@ -257,7 +258,7 @@ def admin_results_export_csv(request):
         target_record=f"Rows: {len(rows)}",
     )
     payload = "\ufeff" + buf.getvalue()
-    fn = f"exam-results-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    fn = f"exam-results-{format_filename_ts()}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     return resp
@@ -283,7 +284,7 @@ def admin_results_export_pdf(request):
         audit_action=ACTION_EXPORT,
         target_record=f"Rows: {len(rows)}",
     )
-    fn = f"exam-results-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    fn = f"exam-results-{format_filename_ts()}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     return resp
@@ -396,7 +397,7 @@ def audit_trail_export_csv(request):
     for r in rows:
         w.writerow(
             [
-                r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                format_dt(r.created_at, seconds=True),
                 r.user_name or (r.user.email if r.user_id else ""),
                 r.user_role,
                 r.module,
@@ -417,7 +418,7 @@ def audit_trail_export_csv(request):
         detail=_audit_filters_description(request),
     )
     payload = "\ufeff" + buf.getvalue()
-    fn = f"audit-trail-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    fn = f"audit-trail-{format_filename_ts()}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     return resp
@@ -442,7 +443,7 @@ def audit_trail_export_pdf(request):
         target_record=f"Rows: {len(rows)}",
         detail=_audit_filters_description(request),
     )
-    fn = f"audit-trail-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    fn = f"audit-trail-{format_filename_ts()}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     return resp
@@ -521,7 +522,7 @@ def admin_export_students_pdf(request):
         filters_description=describe_export_filters(request),
         group_by=gb if gb in ("course", "session") else "",
     )
-    fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    fn = f"student-register-{format_filename_ts()}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     log_audit(
@@ -550,7 +551,7 @@ def admin_export_students_csv(request):
     for st in students:
         w.writerow(student_row_cells(st))
     payload = "\ufeff" + buf.getvalue()
-    fn = f"student-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    fn = f"student-register-{format_filename_ts()}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     log_audit(
@@ -579,7 +580,7 @@ def admin_export_enrollments_pdf(request):
         college_location=getattr(settings, "COLLEGE_LOCATION", ""),
         filters_description=describe_enrollment_export_filters(request),
     )
-    fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.pdf"
+    fn = f"enrollment-register-{format_filename_ts()}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     log_audit(
@@ -620,7 +621,7 @@ def admin_export_enrollments_csv(request):
     for enr in enrollments:
         w.writerow(enrollment_row_cells(enr))
     payload = "\ufeff" + buf.getvalue()
-    fn = f"enrollment-register-{timezone.localtime():%Y%m%d-%H%M}.csv"
+    fn = f"enrollment-register-{format_filename_ts()}.csv"
     resp = HttpResponse(payload.encode("utf-8"), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{fn}"'
     log_audit(

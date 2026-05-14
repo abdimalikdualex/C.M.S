@@ -12,6 +12,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .datetime_display import format_dt
 from .student_export_utils import enrollment_row_cells, group_students_for_pdf, student_row_cells
 
 # A4 width 210mm — sum(colWidths) must fit inside page minus left/right margins or ReportLab
@@ -133,7 +134,7 @@ def build_student_register_pdf(
     gen_st = ParagraphStyle("Gen", parent=styles["Normal"], fontSize=9, spaceAfter=2)
     story.append(
         Paragraph(
-            _safe_xml(f"Generated: {timezone.localtime():%Y-%m-%d %H:%M} · Total records: {len(students)}"),
+            _safe_xml(f"Generated: {format_dt(timezone.now())} · Total records: {len(students)}"),
             gen_st,
         )
     )
@@ -206,7 +207,7 @@ def build_enrollment_register_pdf(
     gen_st = ParagraphStyle("Gen", parent=styles["Normal"], fontSize=9, spaceAfter=2)
     story.append(
         Paragraph(
-            _safe_xml(f"Generated: {timezone.localtime():%Y-%m-%d %H:%M} · Total rows: {len(enrollments)}"),
+            _safe_xml(f"Generated: {format_dt(timezone.now())} · Total rows: {len(enrollments)}"),
             gen_st,
         )
     )

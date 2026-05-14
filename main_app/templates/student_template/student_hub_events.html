@@ -26,8 +26,8 @@
                 {% if ev.description %}<div class="small text-muted mt-1">{{ ev.description|truncatewords:40 }}</div>{% endif %}
               </td>
               <td>
-                {{ ev.starts_at|date:"M j, Y H:i" }}
-                {% if ev.ends_at %}<br><small class="text-muted">to {{ ev.ends_at|date:"M j, Y H:i" }}</small>{% endif %}
+                {{ ev.starts_at|date:"d/m/Y h:i A" }}
+                {% if ev.ends_at %}<br><small class="text-muted">to {{ ev.ends_at|date:"d/m/Y h:i A" }}</small>{% endif %}
               </td>
               <td>{{ ev.location_or_link|default:"—"|truncatechars:40 }}</td>
               <td>

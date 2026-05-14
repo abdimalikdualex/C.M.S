@@ -13,6 +13,7 @@ import re
 import uuid
 
 from .money import max_zero_kes, quantize_kes
+from .datetime_display import format_dt, format_receipt_day_stamp
 
 
 
@@ -269,7 +270,7 @@ class Student(models.Model):
         default="",
         help_text="Official admission number (EDH/YYYY/NNN). Assigned automatically; do not edit manually.",
     )
-    enrollment_date = models.DateField(default=timezone.now)
+    enrollment_date = models.DateField(default=timezone.localdate)
 
     def clean(self):
         super().clean()
@@ -327,7 +328,7 @@ class Enrollment(models.Model):
     )
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="enrollments")
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
-    start_date = models.DateField(default=timezone.now)
+    start_date = models.DateField(default=timezone.localdate)
     total_fee = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS, default="active")
     enrollment_level = models.CharField(max_length=20, choices=LEVEL, default="", blank=True)
@@ -679,7 +680,7 @@ class AuditLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.created_at:%Y-%m-%d %H:%M} {self.module or self.legacy_event} {self.activity or ''}"
+        return f"{format_dt(self.created_at)} {self.module or self.legacy_event} {self.activity or ''}"
 
 
 
@@ -709,7 +710,7 @@ class EnrollmentFeeAudit(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Fee {self.previous_fee} → {self.new_fee} @ {self.created_at:%Y-%m-%d %H:%M}"
+        return f"Fee {self.previous_fee} → {self.new_fee} @ {format_dt(self.created_at)}"
 
 
 class StudentHubProfile(models.Model):
@@ -834,7 +835,7 @@ class Payment(models.Model):
         if not self.course_id and self.student_id:
             self.course = self.student.course
         if not self.receipt_no:
-            self.receipt_no = f"RCPT-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+            self.receipt_no = f"RCPT-{format_receipt_day_stamp()}-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
         # Per-enrollment balances are computed dynamically from related payments.
 

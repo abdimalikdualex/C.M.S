@@ -14,6 +14,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from .datetime_display import format_date, format_dt
 from .money import quantize_kes
 
 
@@ -95,13 +96,13 @@ def build_payment_receipt_pdf(
 
     rows = [
         ["Receipt no.", payment.receipt_no or "—"],
-        ["Date", payment.paid_at.strftime("%Y-%m-%d %H:%M") if payment.paid_at else "—"],
+        ["Date", format_dt(payment.paid_at) if payment.paid_at else "—"],
         ["Student", student.admin.get_full_name()],
         ["Admission no.", student.student_id or "—"],
         ["Course", course_name],
     ]
     if payment.enrollment_id:
-        rows.append(["Enrollment start", payment.enrollment.start_date.strftime("%Y-%m-%d")])
+        rows.append(["Enrollment start", format_date(payment.enrollment.start_date)])
     rows.extend(
         [
             ["Amount (KES)", _kes_display(payment.amount)],
@@ -173,7 +174,7 @@ def build_fee_statement_pdf(
     enr = ""
     ed = getattr(student, "enrollment_date", None)
     if ed:
-        enr = f"Enrolled: {ed.strftime('%Y-%m-%d')}<br/>"
+        enr = f"Enrolled: {format_date(ed)}<br/>"
     block = (
         f"<b>{_safe_para(student.admin.get_full_name())}</b><br/>"
         f"Admission no.: {_safe_para(sid)}<br/>{course_line}{enr}"
@@ -210,7 +211,7 @@ def build_fee_statement_pdf(
         enr_data.append(
             [
                 e.course.name,
-                e.start_date.strftime("%Y-%m-%d") if e.start_date else "—",
+                format_date(e.start_date) if e.start_date else "—",
                 _kes_display(e.total_fee),
                 _kes_display(e.amount_paid),
                 _kes_display(e.balance_due),
@@ -248,7 +249,7 @@ def build_fee_statement_pdf(
             cname = p.course.name
         pay_data.append(
             [
-                p.paid_at.strftime("%Y-%m-%d") if p.paid_at else "—",
+                format_dt(p.paid_at) if p.paid_at else "—",
                 cname,
                 p.receipt_no or "—",
                 _kes_display(p.amount),

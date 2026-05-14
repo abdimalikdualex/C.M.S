@@ -12,7 +12,7 @@
         <h3 class="card-title">{{ assessment.title }}</h3>
         <p class="mb-0 small text-muted">
           <span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span>
-          {{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}
+          {{ assessment.course.name }} · Due {{ assessment.due_date|date:"d/m/Y h:i A" }}
         </p>
       </div>
       <div class="card-body">
@@ -34,7 +34,7 @@
           {% endif %}
         </div>
         {% elif submission %}
-        <p class="text-success">You submitted on {{ submission.submitted_at|date:"Y-m-d H:i" }}.</p>
+        <p class="text-success">You submitted on {{ submission.submitted_at|date:"d/m/Y h:i A" }}.</p>
         {% if submission.file %}<p><a href="{{ submission.file.url }}" target="_blank" rel="noopener">Your uploaded file</a></p>{% endif %}
         {% if submission.text_answer %}<div class="border rounded p-2 small">{{ submission.text_answer|linebreaks }}</div>{% endif %}
         {% if closed and not graded %}

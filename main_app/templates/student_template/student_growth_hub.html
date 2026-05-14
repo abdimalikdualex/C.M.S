@@ -68,7 +68,7 @@
                     {% if row.mentor_notes %}
                       <ul class="list-unstyled small mb-0">
                         {% for n in row.mentor_notes %}
-                        <li class="mb-1"><span class="text-muted">{{ n.created_at|date:"M j" }} —</span> {{ n.body|truncatewords:24 }}</li>
+                        <li class="mb-1"><span class="text-muted">{{ n.created_at|date:"d/m/Y" }} —</span> {{ n.body|truncatewords:24 }}</li>
                         {% endfor %}
                       </ul>
                     {% else %}
@@ -147,7 +147,7 @@
           <ul class="list-group list-group-flush">
             {% for ev in upcoming_events %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span><strong>{{ ev.title }}</strong><br><small class="text-muted">{{ ev.starts_at|date:"M j, Y H:i" }} · {{ ev.get_event_kind_display }}</small></span>
+              <span><strong>{{ ev.title }}</strong><br><small class="text-muted">{{ ev.starts_at|date:"d/m/Y h:i A" }} · {{ ev.get_event_kind_display }}</small></span>
               {% if ev.id in registered_event_ids %}
               <span class="badge badge-success">Registered</span>
               {% endif %}

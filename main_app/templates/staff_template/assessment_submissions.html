@@ -11,7 +11,7 @@
     <div class="card card-dark">
       <div class="card-header">
         <h3 class="card-title">{{ assessment.title }}</h3>
-        <p class="mb-0 small text-muted"><span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span> · Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"Y-m-d H:i" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
+        <p class="mb-0 small text-muted"><span class="badge badge-secondary">{{ assessment.get_task_kind_display }}</span> · Course: {{ assessment.course.name }} · Due {{ assessment.due_date|date:"d/m/Y h:i A" }}{% if assessment.closes_at_deadline %} · closes at deadline{% endif %}</p>
       </div>
       <div class="card-body">
         {% if assessment.file %}
@@ -48,7 +48,7 @@
               </td>
               <td>
                 {% if row.submission %}
-                  {{ row.submission.submitted_at|date:"Y-m-d H:i" }}
+                  {{ row.submission.submitted_at|date:"d/m/Y h:i A" }}
                   {% if row.submission.file %}<br><a href="{{ row.submission.file.url }}" target="_blank" rel="noopener">File</a>{% endif %}
                   {% if row.submission.text_answer %}<br><span class="small">{{ row.submission.text_answer|truncatewords:20 }}</span>{% endif %}
                 {% else %}—{% endif %}

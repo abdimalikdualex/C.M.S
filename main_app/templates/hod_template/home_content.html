@@ -81,7 +81,7 @@
                         {% if recent_audit_logs %}
                         <ul class="list-unstyled small mb-0 mt-2">
                             {% for a in recent_audit_logs %}
-                            <li class="mb-1"><span class="text-muted">{{ a.created_at|date:"M j, H:i" }}</span> — {% firstof a.user_name a.user.email "—" %}: {{ a.activity|default:a.legacy_event|truncatechars:50 }}</li>
+                            <li class="mb-1"><span class="text-muted">{{ a.created_at|date:"d/m/Y h:i A" }}</span> — {% firstof a.user_name a.user.email "—" %}: {{ a.activity|default:a.legacy_event|truncatechars:50 }}</li>
                             {% endfor %}
                         </ul>
                         {% endif %}

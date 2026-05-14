@@ -1,6 +1,25 @@
-from django.urls import resolve, reverse
-from django.utils.deprecation import MiddlewareMixin
+from django.conf import settings
 from django.shortcuts import redirect
+from django.urls import resolve, reverse
+from django.utils import timezone
+from django.utils.deprecation import MiddlewareMixin
+
+
+class ActivateKenyaTimezoneMiddleware(MiddlewareMixin):
+    """
+    Always use Africa/Nairobi (EAT, UTC+3) for this request.
+
+    Ensures template |date filters, form parsing of naive datetimes, and
+    ORM __date lookups align with Kenyan local time regardless of server
+    OS timezone or client hints.
+    """
+
+    def process_request(self, request):
+        timezone.activate(settings.TIME_ZONE)
+
+    def process_response(self, request, response):
+        timezone.deactivate()
+        return response
 
 
 class LoginCheckMiddleWare(MiddlewareMixin):

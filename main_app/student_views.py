@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .forms import *
 from .models import *
 from .audit import ACTION_CREATE, MODULE_ASSIGNMENTS, log_audit
+from .datetime_display import format_receipt_day_stamp
 
 
 def student_home(request):
@@ -345,7 +346,7 @@ def student_result_slip_pdf(request):
         college_location=getattr(settings, "COLLEGE_LOCATION", ""),
     )
     adm = (student.student_id or "learner").replace("/", "-")
-    fn = f"result-slip-{adm}-{timezone.localtime():%Y%m%d}.pdf"
+    fn = f"result-slip-{adm}-{format_receipt_day_stamp()}.pdf"
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{fn}"'
     return resp
