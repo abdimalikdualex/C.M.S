@@ -95,7 +95,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
-    'django.middleware.timezone.TimezoneMiddleware',
+    # django.middleware.timezone is not shipped in some Django builds; we force TIME_ZONE per request below.
     'main_app.middleware.ActivateKenyaTimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
