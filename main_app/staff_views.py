@@ -12,6 +12,13 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from .academic_access import (
+    ensure_academic_staff,
+    is_hub_superadmin,
+    sessions_for_academic,
+    subjects_for_academic,
+    user_may_access_subject,
+)
 from .enrollment_service import ensure_enrollment as _ensure_enrollment
 from .forms import *
 from .models import *
@@ -238,6 +245,45 @@ def staff_students_overview_by_course(request):
 
 
 def staff_home(request):
+    if is_hub_superadmin(request.user):
+        staff = ensure_academic_staff(request)
+        if staff is None:
+            return redirect(reverse("superadmin_dashboard"))
+        total_students = Student.objects.count()
+        course_label = "All courses (lead trainer)"
+        total_leave = LeaveReportStaff.objects.filter(staff=staff).count()
+        subjects = subjects_for_academic(request, staff)
+        total_subject = subjects.count()
+        attendance_list = []
+        subject_list = []
+        for subject in subjects:
+            attendance_count = Attendance.objects.filter(subject=subject).count()
+            subject_list.append(subject.name)
+            attendance_list.append(attendance_count)
+        from .models import Assessment, Submission
+
+        coursework_pending_review = Submission.objects.filter(
+            review_status=Submission.REVIEW_SUBMITTED,
+        ).count()
+        soon = timezone.now() + timedelta(days=14)
+        assessment_upcoming = Assessment.objects.filter(
+            due_date__gte=timezone.now(),
+            due_date__lte=soon,
+        ).count()
+        context = {
+            "page_title": "Lead trainer — " + str(staff.admin),
+            "total_students": total_students,
+            "total_attendance": Attendance.objects.filter(subject__in=subjects).count(),
+            "total_leave": total_leave,
+            "total_subject": total_subject,
+            "subject_list": subject_list,
+            "attendance_list": attendance_list,
+            "coursework_pending_review": coursework_pending_review,
+            "assessment_upcoming": assessment_upcoming,
+            "staff_is_instructor": True,
+        }
+        return render(request, "staff_template/home_content.html", context)
+
     staff = get_object_or_404(Staff, admin=request.user)
     if staff.role in ("admission", "finance"):
         total_students = Student.objects.count()
@@ -292,9 +338,14 @@ def staff_home(request):
 
 @require_instructor
 def staff_take_attendance(request):
-    staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff_id=staff, is_active=True).select_related("course")
-    sessions = _instructor_sessions(staff)
+    if is_hub_superadmin(request.user):
+        staff = ensure_academic_staff(request)
+    else:
+        staff = get_object_or_404(Staff, admin=request.user)
+    if staff is None:
+        return redirect(reverse("staff_home"))
+    subjects = subjects_for_academic(request, staff).select_related("course")
+    sessions = sessions_for_academic(request, staff)
     context = {
         'subjects': subjects,
         'sessions': sessions,
@@ -305,14 +356,19 @@ def staff_take_attendance(request):
 
 
 def staff_my_classes(request):
-    """Instructor-only class roster grouped by assigned subjects/courses."""
-    staff = get_object_or_404(Staff, admin=request.user)
-    if staff.role != "instructor":
-        messages.error(request, "Only instructors can access classes and attendance.")
-        return redirect(reverse("staff_home"))
+    """Class roster grouped by assigned subjects/courses (all units for Superadmin)."""
+    if is_hub_superadmin(request.user):
+        staff = ensure_academic_staff(request)
+        if staff is None:
+            return redirect(reverse("superadmin_dashboard"))
+    else:
+        staff = get_object_or_404(Staff, admin=request.user)
+        if staff.role != "instructor":
+            messages.error(request, "Only instructors can access classes and attendance.")
+            return redirect(reverse("staff_home"))
 
     subjects = (
-        Subject.objects.filter(staff=staff, is_active=True)
+        subjects_for_academic(request, staff)
         .select_related("course")
         .order_by("course__name", "name")
     )
@@ -357,8 +413,13 @@ def get_students(request):
         if not subject.is_active:
             return HttpResponse("[]", content_type="application/json")
         session = get_object_or_404(Session, id=session_id) if session_id else None
-        staff = get_object_or_404(Staff, admin=request.user)
-        if subject.staff_id != staff.id:
+        if is_hub_superadmin(request.user):
+            staff = ensure_academic_staff(request)
+        else:
+            staff = get_object_or_404(Staff, admin=request.user)
+        if staff is None:
+            return HttpResponse("[]", content_type="application/json")
+        if not user_may_access_subject(request, staff, subject):
             return HttpResponse("[]", content_type="application/json")
 
         enrollment_qs = Enrollment.objects.filter(
@@ -423,9 +484,14 @@ def save_attendance(request):
 
 
 def staff_update_attendance(request):
-    staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff_id=staff, is_active=True)
-    sessions = _instructor_sessions(staff)
+    if is_hub_superadmin(request.user):
+        staff = ensure_academic_staff(request)
+    else:
+        staff = get_object_or_404(Staff, admin=request.user)
+    if staff is None:
+        return redirect(reverse("staff_home"))
+    subjects = subjects_for_academic(request, staff)
+    sessions = sessions_for_academic(request, staff)
     context = {
         'subjects': subjects,
         'sessions': sessions,
@@ -592,8 +658,13 @@ def staff_view_notification(request):
 
 
 def staff_add_result(request):
-    staff = get_object_or_404(Staff, admin=request.user)
-    subjects = Subject.objects.filter(staff=staff, is_active=True)
+    if is_hub_superadmin(request.user):
+        staff = ensure_academic_staff(request)
+        if staff is None:
+            return redirect(reverse("superadmin_dashboard"))
+    else:
+        staff = get_object_or_404(Staff, admin=request.user)
+    subjects = subjects_for_academic(request, staff)
     sessions = Session.objects.latest_first()
     context = {
         'page_title': 'Enter exam results (units)',
@@ -610,7 +681,7 @@ def staff_add_result(request):
             exam = float(request.POST.get('exam') or 0)
             student = get_object_or_404(Student, id=student_id)
             subject = get_object_or_404(Subject, id=subject_id)
-            if subject.staff_id != staff.id or not subject.is_active:
+            if not user_may_access_subject(request, staff, subject):
                 messages.error(request, "You cannot record results for this unit.")
                 return render(request, "staff_template/staff_add_result.html", context)
             sess = None

@@ -16,7 +16,8 @@ Active permission surface:
 
   Superadmin
     - Full access. Owns enrollment, fees, payments, sessions, courses,
-      instructor management, reports, receipts.
+      instructor management, reports, receipts, and all academic/instructor
+      workflows (assignments, submissions, attendance, results) hub-wide.
 
   Instructor
     - Can: view assigned course students, take/update attendance, create

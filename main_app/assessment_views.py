@@ -7,17 +7,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from .academic_access import (
+    assessment_queryset_for_user,
+    ensure_academic_staff,
+    get_assessment_for_academic,
+    is_hub_superadmin,
+    staff_may_mentor_enrollment,
+)
 from .audit import ACTION_CREATE, ACTION_UPDATE, MODULE_ASSESSMENTS, log_audit
 from .forms import AssessmentForm, MentorNoteForm, SubmissionGradeForm
-from .models import Assessment, Enrollment, MentorNote, Staff, Student, Submission
+from .models import Assessment, Enrollment, MentorNote, Student, Submission
 
 
 def _require_instructor(request):
-    staff = get_object_or_404(Staff, admin=request.user)
-    if staff.role != "instructor":
-        messages.error(request, "Only instructors can manage assessments.")
-        return None
-    return staff
+    return ensure_academic_staff(request)
 
 
 def _students_for_course(course):
@@ -36,7 +39,7 @@ def instructor_assessment_list(request):
     staff = _require_instructor(request)
     if staff is None:
         return redirect(reverse("staff_home"))
-    qs = Assessment.objects.filter(instructor=staff).select_related("course", "session")
+    qs = assessment_queryset_for_user(request, staff).select_related("course", "session")
     assessments = (
         qs.annotate(
             sub_cnt=Count("submissions"),
@@ -59,7 +62,7 @@ def instructor_assessment_create(request):
     staff = _require_instructor(request)
     if staff is None:
         return redirect(reverse("staff_home"))
-    if not staff.course_id:
+    if not staff.course_id and not is_hub_superadmin(request.user):
         messages.error(request, "You have no course assigned. Ask the administrator to assign a course.")
         return redirect(reverse("staff_assessment_list"))
     form = AssessmentForm(request.POST or None, request.FILES or None, staff=staff)
@@ -88,7 +91,7 @@ def instructor_assessment_detail(request, pk):
     staff = _require_instructor(request)
     if staff is None:
         return redirect(reverse("staff_home"))
-    assessment = get_object_or_404(Assessment, pk=pk, instructor=staff)
+    assessment = get_assessment_for_academic(request, staff, pk)
     form = AssessmentForm(
         request.POST or None,
         request.FILES or None,
@@ -122,7 +125,7 @@ def instructor_assessment_submissions(request, pk):
     staff = _require_instructor(request)
     if staff is None:
         return redirect(reverse("staff_home"))
-    assessment = get_object_or_404(Assessment, pk=pk, instructor=staff)
+    assessment = get_assessment_for_academic(request, staff, pk)
     students = _students_for_course(assessment.course)
     subs = {
         s.student_id: s
@@ -145,14 +148,6 @@ def instructor_assessment_submissions(request, pk):
     return render(request, "staff_template/assessment_submissions.html", context)
 
 
-def _staff_may_mentor_enrollment(staff, enrollment) -> bool:
-    if enrollment.assigned_instructor_id == staff.id:
-        return True
-    if staff.course_id and enrollment.course_id == staff.course_id:
-        return True
-    return False
-
-
 def instructor_mentor_enrollment(request, enrollment_id):
     staff = _require_instructor(request)
     if staff is None:
@@ -161,7 +156,7 @@ def instructor_mentor_enrollment(request, enrollment_id):
         Enrollment.objects.select_related("student__admin", "course"),
         pk=enrollment_id,
     )
-    if not _staff_may_mentor_enrollment(staff, enrollment):
+    if not staff_may_mentor_enrollment(request, staff, enrollment):
         messages.error(
             request,
             "You can only leave mentor notes for learners in your assigned course.",
@@ -193,7 +188,7 @@ def instructor_grade_submission(request, pk, sub_id):
     staff = _require_instructor(request)
     if staff is None:
         return redirect(reverse("staff_home"))
-    assessment = get_object_or_404(Assessment, pk=pk, instructor=staff)
+    assessment = get_assessment_for_academic(request, staff, pk)
     submission = get_object_or_404(
         Submission.objects.select_related("student__admin").prefetch_related("attachments"),
         pk=sub_id,

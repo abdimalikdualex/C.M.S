@@ -1,14 +1,20 @@
 from django.shortcuts import get_object_or_404, render, redirect
 from django.views import View
 from django.contrib import messages
-from .models import Subject, Staff, Student, StudentResult
+from .models import Staff, StudentResult
 from .forms import EditResultForm
 from django.urls import reverse
+from .academic_access import ensure_academic_staff, is_hub_superadmin
 
 
 class EditResultView(View):
     def get(self, request, *args, **kwargs):
-        staff = get_object_or_404(Staff, admin=request.user)
+        if is_hub_superadmin(request.user):
+            staff = ensure_academic_staff(request)
+            if staff is None:
+                return redirect(reverse("superadmin_dashboard"))
+        else:
+            staff = get_object_or_404(Staff, admin=request.user)
         resultForm = EditResultForm(staff=staff)
         context = {
             'form': resultForm,
@@ -17,7 +23,12 @@ class EditResultView(View):
         return render(request, "staff_template/edit_student_result.html", context)
 
     def post(self, request, *args, **kwargs):
-        staff = get_object_or_404(Staff, admin=request.user)
+        if is_hub_superadmin(request.user):
+            staff = ensure_academic_staff(request)
+            if staff is None:
+                return redirect(reverse("superadmin_dashboard"))
+        else:
+            staff = get_object_or_404(Staff, admin=request.user)
         form = EditResultForm(request.POST, staff=staff)
         context = {'form': form, 'page_title': "Edit Student's Result"}
         if form.is_valid():

@@ -253,6 +253,53 @@
                         <p>Assessments overview</p>
                     </a>
                 </li>
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link {% with n=request.resolver_match.url_name %}{% if n == 'staff_assessment_list' or n == 'staff_assessment_create' or n == 'staff_assessment_detail' or n == 'staff_assessment_submissions' or n == 'staff_assessment_grade' or n == 'staff_mentor_enrollment' or n == 'staff_my_classes' or n == 'staff_take_attendance' or n == 'staff_update_attendance' or n == 'staff_add_result' or n == 'edit_student_result' %} active {% endif %}{% endwith %}">
+                        <i class="nav-icon fas fa-chalkboard-teacher"></i>
+                        <p>
+                            Lead trainer (academic)
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'staff_assessment_list' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_assessment_list' or request.resolver_match.url_name == 'staff_assessment_create' or request.resolver_match.url_name == 'staff_assessment_detail' or request.resolver_match.url_name == 'staff_assessment_submissions' or request.resolver_match.url_name == 'staff_assessment_grade' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Assignments &amp; coursework</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'staff_my_classes' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_my_classes' or request.resolver_match.url_name == 'staff_mentor_enrollment' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Classes &amp; mentor notes</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'staff_take_attendance' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_take_attendance' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Take attendance</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'staff_update_attendance' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_update_attendance' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Update attendance</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'staff_add_result' %}" class="nav-link {% if request.resolver_match.url_name == 'staff_add_result' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Enter results</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'edit_student_result' %}" class="nav-link {% if request.resolver_match.url_name == 'edit_student_result' %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Edit results</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
                 <li class="nav-item">
                     {% url 'admin_results_overview' as admin_results_overview %}
                     <a href="{{ admin_results_overview }}"

@@ -27,8 +27,9 @@ class LoginCheckMiddleWare(MiddlewareMixin):
     URL-area routing for the ICT Hub edition.
 
     Three active roles only:
-      * Superadmin (CustomUser.user_type in {"1", "4"}) — full access except
-        student-only views. ut="4" is the legacy Director column folded in.
+      * Superadmin (CustomUser.user_type in {"1", "4"}) — full access including
+        the same academic tools as instructors (assignments, attendance, results)
+        across all courses; student-only views still redirect to the admin home.
       * Instructor (CustomUser.user_type == "2") — staff/assessment area only.
         Legacy admission/finance staff also land here; they can browse the
         instructor pages but have no course assignment so they see empty

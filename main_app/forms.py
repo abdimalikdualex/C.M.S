@@ -12,6 +12,8 @@ from django.utils.crypto import get_random_string
 import re
 import uuid
 
+from .academic_access import is_hub_superadmin
+
 
 class FormSettings(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -556,14 +558,24 @@ class EditResultForm(FormSettings):
         self.fields["session"].queryset = Session.objects.latest_first()
         self.fields["session"].required = False
         if staff is not None:
-            self.fields["subject"].queryset = Subject.objects.filter(
-                staff=staff, is_active=True
-            ).select_related("course")
-            cids = list(
-                Subject.objects.filter(staff=staff)
-                .values_list("course_id", flat=True)
-                .distinct()
-            )
+            if is_hub_superadmin(staff.admin):
+                self.fields["subject"].queryset = Subject.objects.filter(
+                    is_active=True
+                ).select_related("course")
+                cids = list(
+                    Subject.objects.filter(is_active=True)
+                    .values_list("course_id", flat=True)
+                    .distinct()
+                )
+            else:
+                self.fields["subject"].queryset = Subject.objects.filter(
+                    staff=staff, is_active=True
+                ).select_related("course")
+                cids = list(
+                    Subject.objects.filter(staff=staff)
+                    .values_list("course_id", flat=True)
+                    .distinct()
+                )
             enrolled_ids = Enrollment.objects.filter(
                 course_id__in=cids, status="active"
             ).values_list("student_id", flat=True)
@@ -751,6 +763,8 @@ class AssessmentForm(FormSettings):
         ]
         if staff and staff.course_id:
             self.fields["course"].queryset = Course.objects.filter(pk=staff.course_id)
+        elif staff and is_hub_superadmin(staff.admin):
+            self.fields["course"].queryset = Course.objects.all().order_by("name")
         elif staff:
             self.fields["course"].queryset = Course.objects.none()
         self.fields["session"].queryset = Session.objects.active_or_latest()

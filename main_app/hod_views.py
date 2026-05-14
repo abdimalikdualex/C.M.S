@@ -127,13 +127,16 @@ def admin_home(request):
         "course_name_list": course_name_list,
         "current_active_session": Session.objects.active().first(),
         "recent_audit_logs": AuditLog.objects.select_related("user").order_by("-created_at")[:12],
+        "coursework_pending_review_count": Submission.objects.filter(
+            review_status=Submission.REVIEW_SUBMITTED
+        ).count(),
     }
     return render(request, 'hod_template/home_content.html', context)
 
 
 def admin_assessments(request):
-    """Super Admin: all assessments and submission counts (read-only overview)."""
-    if str(getattr(request.user, "user_type", "") or "").strip() != "1":
+    """Superadmin + Director: all assessments overview + deep links into the same tools instructors use."""
+    if not _hub_superadmin(request):
         return redirect(reverse("login_page"))
     assessments = (
         Assessment.objects.select_related("course", "instructor__admin", "session")
@@ -1679,9 +1682,10 @@ def delete_session(request, session_id):
 
 
 def _hod_superadmin_required(request):
-    if not request.user.is_authenticated or str(request.user.user_type) != "1":
+    """Auth + Superadmin or Director (legacy) — used for retired-role bounce pages."""
+    if not request.user.is_authenticated:
         return False
-    return True
+    return _hub_superadmin(request)
 
 
 def _default_profile_image_file():

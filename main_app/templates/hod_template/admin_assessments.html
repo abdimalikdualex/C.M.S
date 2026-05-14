@@ -16,6 +16,7 @@
               <th>Due</th>
               <th>Submissions</th>
               <th>Awaiting review</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -27,9 +28,13 @@
               <td>{{ a.due_date|date:"d/m/Y h:i A" }}</td>
               <td>{{ a.submission_count }}</td>
               <td>{% if a.pending_review_count %}<span class="badge badge-warning">{{ a.pending_review_count }}</span>{% else %}—{% endif %}</td>
+              <td class="text-nowrap">
+                <a href="{% url 'staff_assessment_submissions' a.pk %}" class="btn btn-xs btn-primary">Review</a>
+                <a href="{% url 'staff_assessment_detail' a.pk %}" class="btn btn-xs btn-outline-secondary">Edit</a>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No assessments yet.</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">No assessments yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -17,7 +17,7 @@ def operational_alerts(request):
     if not request.user.is_authenticated:
         return {"pending_fee_alert_count": 0, "new_enrollments_today_count": 0}
     ut = str(getattr(request.user, "user_type", "") or "").strip()
-    if ut not in ("1", "2"):
+    if ut not in ("1", "2", "4"):
         return {"pending_fee_alert_count": 0, "new_enrollments_today_count": 0}
     if ut == "2":
         try:
