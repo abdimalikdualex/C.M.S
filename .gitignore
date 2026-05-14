@@ -4,3 +4,7 @@ db.sqlite3
 venv/
 .env/
 *.log
+
+# collectstatic output (keep directory for dev / WhiteNoise smoke checks)
+static/*
+!static/.gitkeep

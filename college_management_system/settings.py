@@ -95,7 +95,8 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
-    # django.middleware.timezone is not shipped in some Django builds; we force TIME_ZONE per request below.
+    # Django 4.2+ has no django.middleware.timezone; per-request TZ is set here (Kenya).
+    # Templates use django.template.context_processors.tz (not the old ".timezone" name).
     'main_app.middleware.ActivateKenyaTimezoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -122,7 +123,7 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.template.context_processors.i18n',
-                'django.template.context_processors.timezone',
+                'django.template.context_processors.tz',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'main_app.context_processors.staff_role',
