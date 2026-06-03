@@ -9,7 +9,7 @@ copied to the host. The fix is to (1) run migrations on every deploy and
 Everything needed for that is already wired up in this repo:
 
 - `main_app/management/commands/create_default_admin.py` - idempotent seeder.
-- `build.sh` - build-time steps (install, collectstatic, migrate, seed admin).
+- `build.sh` - build-time steps (install, collectstatic).
 - `Procfile` - `release` phase runs migrations + seeder on every deploy; `web`
   launches gunicorn.
 - `college_management_system/settings.py` - respects `DATABASE_URL`,
@@ -26,7 +26,8 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 | `DEBUG` | no | `False` (default) |
 | `ALLOWED_HOSTS` | recommended | `yourapp.onrender.com,yourdomain.com` |
 | `CSRF_TRUSTED_ORIGINS` | recommended | `https://yourapp.onrender.com,https://yourdomain.com` |
-| `DATABASE_URL` | **strongly recommended** | `postgres://user:pass@host:5432/db` |
+| `DATABASE_URL` | **strongly recommended** | Full URL from Render **Connect** (set automatically when you link a database) |
+| `DATABASE_EXTERNAL_URL` | optional | Use Render **External** URL if internal host `dpg-…-a` does not resolve |
 | `DEFAULT_ADMIN_EMAIL` | optional | `admin@elevate.college` |
 | `DEFAULT_ADMIN_PASSWORD` | optional | `ElevateAdmin@2026` |
 | `DEFAULT_ADMIN_FULL_NAME` | optional | `System Administrator` |
@@ -40,14 +41,34 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 
 ## Render setup (recommended)
 
-1. Create a PostgreSQL instance on Render and copy its Internal Database URL.
-2. Create a **Web Service** from this repo with:
-   - **Build command**: `./build.sh`
+1. Create a PostgreSQL instance on Render (note the **region**, e.g. Oregon).
+2. Create a **Web Service** in the **same region** as the database.
+3. On the web service, use **Environment → Link Database** (preferred) or paste
+   the **Internal Database URL** from the database **Connect** menu as
+   `DATABASE_URL`. Do not type the hostname alone (`dpg-…-a`); use the full
+   `postgresql://USER:PASSWORD@HOST:5432/DATABASE` string.
+4. Set:
+   - **Build command**: `./build.sh` (install + collectstatic only)
    - **Start command**: `gunicorn college_management_system.wsgi --log-file -`
-3. Add the environment variables from the table above (at minimum
-   `SECRET_KEY`, `ALLOWED_HOSTS`, `DATABASE_URL`).
-4. Deploy. The build script will run migrations and create the default HOD
-   account automatically.
+5. Add environment variables (at minimum `SECRET_KEY`, `ALLOWED_HOSTS`;
+   `DATABASE_URL` is set automatically when you link the database).
+6. Deploy. Migrations and the default HOD account are created by the Procfile
+   `release` phase (`migrate` + `create_default_admin`), not during the build.
+
+### Troubleshooting: `could not translate host name "dpg-…-a"`
+
+This means Django cannot resolve your Postgres hostname (DNS). Common causes:
+
+| Cause | Fix |
+| --- | --- |
+| Database deleted or suspended | Render Dashboard → Postgres → confirm status is **Available**; resume or create a new DB |
+| Stale `DATABASE_URL` | Re-link the database to the web service, or copy a fresh URL from **Connect** |
+| Web service and DB in different regions | Move one of them so both use the same region (e.g. Oregon) |
+| `DATABASE_URL` is incomplete | Must be the full connection string, not only `dpg-xxxxx-a` |
+| Internal host still fails | Set `DATABASE_EXTERNAL_URL` to the **External Database URL** from Render (full host like `dpg-xxxxx-a.oregon-postgres.render.com`) |
+
+After fixing `DATABASE_URL`, trigger a **Manual Deploy**. Check deploy logs for the
+`release` step; if migrate succeeds there, the app should start normally.
 
 ## Heroku setup
 

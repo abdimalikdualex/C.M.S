@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import dj_database_url
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -233,12 +234,20 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Use DATABASE_URL when provided (Render/Heroku/etc). Falls back to the
 # local SQLite config declared above when the env var isn't set.
+# Optional DATABASE_EXTERNAL_URL overrides DATABASE_URL (use Render's
+# External Database URL if the bare internal host dpg-…-a cannot resolve).
 _database_url = os.environ.get("DATABASE_URL", "").strip()
+_external_url = os.environ.get("DATABASE_EXTERNAL_URL", "").strip()
+if _external_url:
+    _database_url = _external_url
 if _database_url:
+    _pg_host = urlparse(_database_url).hostname or ""
+    _render_internal_pg = _pg_host.startswith("dpg-") and "." not in _pg_host
     DATABASES['default'] = dj_database_url.parse(
         _database_url,
         conn_max_age=500,
-        ssl_require=not DEBUG,
+        # Render internal Postgres (host dpg-…-a) is not reached over SSL.
+        ssl_require=not DEBUG and not _render_internal_pg,
     )
 
 # Behind Render/Heroku load balancers the original request is HTTPS; tell
