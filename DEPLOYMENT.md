@@ -24,7 +24,8 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 | --- | --- | --- |
 | `SECRET_KEY` | yes (production) | any long random string |
 | `DEBUG` | no | `False` (default) |
-| `ALLOWED_HOSTS` | recommended | `yourapp.onrender.com,yourdomain.com` |
+| `SITE_DOMAIN` | recommended | `abdimalikduale.com,www.abdimalikduale.com` |
+| `ALLOWED_HOSTS` | optional | Full override; defaults still include `.onrender.com` |
 | `CSRF_TRUSTED_ORIGINS` | recommended | `https://yourapp.onrender.com,https://yourdomain.com` |
 | `DATABASE_URL` | **strongly recommended** | Full URL from Render **Connect** (set automatically when you link a database) |
 | `DATABASE_EXTERNAL_URL` | optional | Use Render **External** URL if internal host `dpg-…-a` does not resolve |
@@ -48,10 +49,12 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
    `DATABASE_URL`. Do not type the hostname alone (`dpg-…-a`); use the full
    `postgresql://USER:PASSWORD@HOST:5432/DATABASE` string.
 4. Set:
-   - **Build command**: `./build.sh` (install + collectstatic only)
-   - **Start command**: `gunicorn college_management_system.wsgi --log-file -`
-5. Add environment variables (at minimum `SECRET_KEY`, `ALLOWED_HOSTS`;
-   `DATABASE_URL` is set automatically when you link the database).
+   - **Root Directory**: `CollegeManagement-Duale` (if the repo root is one level above)
+   - **Build command**: `./build.sh`
+   - **Start command**: `./start.sh` (migrates, seeds admin, then starts gunicorn)
+5. Add environment variables (at minimum `SECRET_KEY`, `SITE_DOMAIN`;
+   `DATABASE_URL` is set automatically when you link the database):
+   - `SITE_DOMAIN=abdimalikduale.com,www.abdimalikduale.com` (your custom domain)
 6. Deploy. Migrations and the default HOD account are created by the Procfile
    `release` phase (`migrate` + `create_default_admin`), not during the build.
 
@@ -69,6 +72,17 @@ This means Django cannot resolve your Postgres hostname (DNS). Common causes:
 
 After fixing `DATABASE_URL`, trigger a **Manual Deploy**. Check deploy logs for the
 `release` step; if migrate succeeds there, the app should start normally.
+
+### Troubleshooting: `Server Error (500)` on the live site
+
+| Cause | Fix |
+| --- | --- |
+| Postgres host does not resolve | Link database or set `DATABASE_EXTERNAL_URL` (see above) |
+| Custom domain not allowed | Set `SITE_DOMAIN=abdimalikduale.com,www.abdimalikduale.com` |
+| Migrations never ran | Use **Start command** `./start.sh` (runs `migrate` on every boot) |
+| Ephemeral SQLite (no `DATABASE_URL`) | Link Render Postgres and redeploy |
+
+After deploy, open `https://abdimalikduale.com/health/` — you should see `ok`. If `/health/` works but `/` still 500s, the database connection or migrations still need fixing on Render.
 
 ## Heroku setup
 

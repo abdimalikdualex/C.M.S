@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from college_management_system.database_url import resolve_render_postgres_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,6 +58,11 @@ if _hosts_override:
             ALLOWED_HOSTS.append(_h)
 else:
     ALLOWED_HOSTS = list(_default_hosts) + _site_domains
+
+# Render sets this to your *.onrender.com hostname; custom domains need SITE_DOMAIN.
+_render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
 
 
 def _origin_for(host: str) -> str:
@@ -240,6 +247,8 @@ _database_url = os.environ.get("DATABASE_URL", "").strip()
 _external_url = os.environ.get("DATABASE_EXTERNAL_URL", "").strip()
 if _external_url:
     _database_url = _external_url
+elif _database_url:
+    _database_url = resolve_render_postgres_url(_database_url)
 if _database_url:
     _pg_host = urlparse(_database_url).hostname or ""
     _render_internal_pg = _pg_host.startswith("dpg-") and "." not in _pg_host

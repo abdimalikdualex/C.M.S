@@ -9,6 +9,11 @@ from .roles import get_post_login_redirect_url
 from .audit import ACTION_LOGIN, ACTION_LOGOUT, MODULE_AUTH, log_audit
 
 
+def health_check(request):
+    """Lightweight probe for Render/custom domain checks (no database)."""
+    return HttpResponse("ok", content_type="text/plain")
+
+
 def login_page(request):
     if request.user.is_authenticated:
         return redirect(get_post_login_redirect_url(request.user))
