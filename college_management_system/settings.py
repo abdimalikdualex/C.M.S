@@ -149,23 +149,47 @@ TEMPLATES = [
 WSGI_APPLICATION = 'college_management_system.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/3.1/ref/settings/#databases
+# Database — single-stack mode (default): SQLite file lives with the app.
+# Set USE_SQLITE=0 and DATABASE_URL only if you intentionally use external Postgres.
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+
+def _sqlite_database_path() -> Path:
+    explicit = os.environ.get("SQLITE_PATH", "").strip()
+    if explicit:
+        return Path(explicit)
+    disk = os.environ.get("RENDER_DISK_PATH", "").strip()
+    if disk:
+        return Path(disk) / "db.sqlite3"
+    return BASE_DIR / "db.sqlite3"
+
+
+def _use_sqlite_database() -> bool:
+    if _env_flag("USE_SQLITE") or _env_flag("SINGLE_STACK"):
+        return True
+    if _env_flag("USE_POSTGRES"):
+        return False
+    # No external DB configured → bundled SQLite (local dev + one-service Render).
+    return not os.environ.get("DATABASE_URL", "").strip()
+
+
+_sqlite_path = _sqlite_database_path()
+if _use_sqlite_database():
+    _sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": _sqlite_path,
+        }
     }
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'django',
-    #     'USER': os.environ.get('DB_USER'),
-    #     'PASSWORD': os.environ.get('DB_PASS'),
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '3307'
-    # }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -214,7 +238,15 @@ STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Uploaded files: keep on the same persistent volume as SQLite when configured.
+_media_root = os.environ.get("MEDIA_ROOT", "").strip()
+if _media_root:
+    MEDIA_ROOT = _media_root
+elif _use_sqlite_database() and (_sqlite_path.parent != BASE_DIR):
+    MEDIA_ROOT = str(_sqlite_path.parent / "media")
+else:
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+Path(MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
 AUTH_USER_MODEL = 'main_app.CustomUser'
 AUTHENTICATION_BACKENDS = ['main_app.EmailBackend.EmailBackend']
 # EMAIL_FILE_PATH = os.path.join(BASE_DIR, "sent_mails")
@@ -242,25 +274,23 @@ HUB_TAGLINE = os.environ.get("HUB_TAGLINE", "ICT Hub System")
 # files that reference optional/missing assets.
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-# Use DATABASE_URL when provided (Render/Heroku/etc). Falls back to the
-# local SQLite config declared above when the env var isn't set.
-# Optional DATABASE_EXTERNAL_URL overrides DATABASE_URL (use Render's
-# External Database URL if the bare internal host dpg-…-a cannot resolve).
-_database_url = os.environ.get("DATABASE_URL", "").strip()
-_external_url = os.environ.get("DATABASE_EXTERNAL_URL", "").strip()
-if _external_url:
-    _database_url = _external_url
-elif _database_url:
-    _database_url = resolve_render_postgres_url(_database_url)
-if _database_url:
-    _pg_host = urlparse(_database_url).hostname or ""
-    _db = dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=False)
-    _options = dict(_db.get("OPTIONS") or {})
-    _options["sslmode"] = postgres_sslmode_for_host(_pg_host)
-    _options["connect_timeout"] = int(os.environ.get("DB_CONNECT_TIMEOUT", "10"))
-    _db["OPTIONS"] = _options
-    _db["CONN_HEALTH_CHECKS"] = True
-    DATABASES["default"] = _db
+# Optional external Postgres (only when USE_SQLITE=0 and DATABASE_URL is set).
+if not _use_sqlite_database():
+    _database_url = os.environ.get("DATABASE_URL", "").strip()
+    _external_url = os.environ.get("DATABASE_EXTERNAL_URL", "").strip()
+    if _external_url:
+        _database_url = _external_url
+    elif _database_url:
+        _database_url = resolve_render_postgres_url(_database_url)
+    if _database_url:
+        _pg_host = urlparse(_database_url).hostname or ""
+        _db = dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=False)
+        _options = dict(_db.get("OPTIONS") or {})
+        _options["sslmode"] = postgres_sslmode_for_host(_pg_host)
+        _options["connect_timeout"] = int(os.environ.get("DB_CONNECT_TIMEOUT", "10"))
+        _db["OPTIONS"] = _options
+        _db["CONN_HEALTH_CHECKS"] = True
+        DATABASES["default"] = _db
 
 # Behind Render/Heroku load balancers the original request is HTTPS; tell
 # Django so secure cookies and redirects behave correctly.

@@ -1,10 +1,4 @@
-# Optional Render Blueprint — ensures DATABASE_URL stays linked to Postgres.
-databases:
-  - name: elevate-db
-    plan: free
-    databaseName: elevate
-    user: elevate
-
+# One service only — app + SQLite on a persistent disk (no separate PostgreSQL).
 services:
   - type: web
     name: elevate-cms
@@ -13,14 +7,24 @@ services:
     rootDir: CollegeManagement-Duale
     buildCommand: ./build.sh
     startCommand: ./start.sh
+    disk:
+      name: cms-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: elevate-db
-          property: connectionString
+      - key: USE_SQLITE
+        value: "1"
+      - key: SQLITE_PATH
+        value: /var/data/db.sqlite3
+      - key: RENDER_DISK_PATH
+        value: /var/data
+      - key: MEDIA_ROOT
+        value: /var/data/media
       - key: SECRET_KEY
         generateValue: true
       - key: SITE_DOMAIN
         value: abdimalikduale.com,www.abdimalikduale.com
       - key: DEBUG
         value: "False"
+      - key: DEFAULT_ADMIN_EMAIL
+        value: amalikduale@gmail.com

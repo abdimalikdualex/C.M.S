@@ -1,5 +1,8 @@
 # Deployment Guide
 
+> **Recommended:** [SINGLE_STACK.md](SINGLE_STACK.md) — one app + SQLite together (no separate PostgreSQL).
+
+
 The "Invalid details" error right after deploying the site happens because the
 production database is fresh and has **no HOD/admin user yet**. The local
 `db.sqlite3` file is ignored by git, so the accounts you use locally are never
