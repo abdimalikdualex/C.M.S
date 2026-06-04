@@ -31,7 +31,6 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 | `DATABASE_EXTERNAL_URL` | optional | Use Render **External** URL if internal host `dpg-…-a` does not resolve |
 | `DEFAULT_ADMIN_EMAIL` | optional | Your HOD email, e.g. `amalikduale@gmail.com` |
 | `DEFAULT_ADMIN_PASSWORD` | optional | The password you want for that email |
-| `SYNC_ADMIN_PASSWORD` | one-time recovery | `1` on next deploy, then remove (forces password sync) |
 | `DEFAULT_ADMIN_FULL_NAME` | optional | `System Administrator` |
 | `RESET_DEFAULT_ADMIN_PASSWORD` | optional | `1` to force-reset on next deploy |
 | `EMAIL_ADDRESS`, `EMAIL_PASSWORD` | optional | SMTP Gmail credentials |
@@ -104,23 +103,37 @@ After the first successful deploy, sign in with:
 - **Email**: value of `DEFAULT_ADMIN_EMAIL` (default `admin@elevate.college`)
 - **Password**: value of `DEFAULT_ADMIN_PASSWORD` (default `ElevateAdmin@2026`)
 
-### Restoring your real email after a database reset
+## Data preservation (nothing is deleted by deploy)
 
-If production Postgres was recreated, your old accounts are **not** copied automatically
-(only local `db.sqlite3` has them). To sign in with your real HOD email again:
+- **`migrate`** only updates table structure; it does **not** delete your rows.
+- **`create_default_admin`** only **adds** a HOD account if missing, or updates flags/password
+  when you **explicitly** set `RESET_DEFAULT_ADMIN_PASSWORD=1`. It never deletes students,
+  staff, courses, or payments.
+- **`./start.sh`** runs migrate + `create_default_admin` only (no data wipe).
 
-1. On Render → Web Service → **Environment**, set:
-   - `DEFAULT_ADMIN_EMAIL` = `amalikduale@gmail.com` (your email)
-   - `DEFAULT_ADMIN_PASSWORD` = your chosen password
-   - `SYNC_ADMIN_PASSWORD` = `1`
-2. **Manual Deploy** (uses `./start.sh`, which runs `create_default_admin --reset-password`).
-3. Log in with that email and password.
-4. Remove `SYNC_ADMIN_PASSWORD` from the environment after a successful login.
+### Copy local data into production (additive only)
 
-Or in **Render Shell**:
+If production Postgres is missing data that still exists in your local `db.sqlite3`, merge it
+**without removing** anything already on the server:
 
 ```bash
-python manage.py set_user_password --email amalikduale@gmail.com --password 'YourNewPassword'
+# Preview (no writes)
+python manage.py merge_sqlite_data --dry-run
+
+# Copy missing users, courses, sessions, staff, students
+python manage.py merge_sqlite_data
+```
+
+Run this from **Render Shell** with `DATABASE_URL` pointing at production, after uploading
+`db.sqlite3` or cloning the repo that contains it. Existing production rows are kept; only
+missing records are inserted (matched by id, email, or student_id).
+
+### Restore login only (does not touch other data)
+
+In **Render Shell** (updates one account’s password only):
+
+```bash
+python manage.py set_user_password --email amalikduale@gmail.com --password 'YourPassword'
 ```
 
 **Change the password immediately** from the HOD profile page. The seeder will

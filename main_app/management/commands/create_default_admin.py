@@ -54,13 +54,9 @@ class Command(BaseCommand):
         parser.add_argument(
             "--reset-password",
             action="store_true",
-            default=(
-                os.environ.get("RESET_DEFAULT_ADMIN_PASSWORD", "").strip().lower()
-                in {"1", "true", "yes"}
-                or os.environ.get("SYNC_ADMIN_PASSWORD", "").strip().lower()
-                in {"1", "true", "yes"}
-            ),
-            help="If set, overwrite the password of an existing account.",
+            default=os.environ.get("RESET_DEFAULT_ADMIN_PASSWORD", "").strip().lower()
+            in {"1", "true", "yes"},
+            help="If set, overwrite the password of an existing account (opt-in only).",
         )
 
     def _ensure_hod_profile(self, user: CustomUser) -> None:
