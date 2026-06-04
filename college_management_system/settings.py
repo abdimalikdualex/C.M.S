@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from college_management_system.database_url import (
+    _on_render,
     postgres_sslmode_for_host,
     resolve_render_postgres_url,
 )
@@ -187,22 +188,42 @@ def _env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
 
 
+def _path_is_writable(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".write_probe"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False
+
+
 def _sqlite_database_path() -> Path:
+    """Prefer persistent disk on Render; fall back to project dir if disk is missing."""
+    candidates: list[Path] = []
     explicit = os.environ.get("SQLITE_PATH", "").strip()
     if explicit:
-        return Path(explicit)
+        candidates.append(Path(explicit))
     disk = os.environ.get("RENDER_DISK_PATH", "").strip()
     if disk:
-        return Path(disk) / "db.sqlite3"
+        candidates.append(Path(disk) / "db.sqlite3")
+    candidates.append(BASE_DIR / "db.sqlite3")
+
+    for path in candidates:
+        if _path_is_writable(path.parent):
+            return path
     return BASE_DIR / "db.sqlite3"
 
 
 def _use_sqlite_database() -> bool:
-    if _env_flag("USE_SQLITE") or _env_flag("SINGLE_STACK"):
-        return True
     if _env_flag("USE_POSTGRES"):
         return False
-    # No external DB configured → bundled SQLite (local dev + one-service Render).
+    if _env_flag("USE_SQLITE") or _env_flag("SINGLE_STACK"):
+        return True
+    # On Render we run single-stack SQLite unless USE_POSTGRES=1 (ignore stale DATABASE_URL).
+    if _on_render():
+        return True
     return not os.environ.get("DATABASE_URL", "").strip()
 
 

@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.db import DatabaseError, OperationalError, ProgrammingError
@@ -23,13 +24,23 @@ def health_db(request):
     """Database connectivity probe (for Render troubleshooting)."""
     from django.db import connection
 
+    db = settings.DATABASES.get("default", {})
+    engine = db.get("ENGINE", "")
+    name = db.get("NAME", "")
     try:
         connection.ensure_connection()
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-        return HttpResponse("db ok", content_type="text/plain")
+        return HttpResponse(
+            f"db ok | engine={engine} | name={name}",
+            content_type="text/plain",
+        )
     except Exception as exc:
-        return HttpResponse(f"db error: {exc}", content_type="text/plain", status=503)
+        return HttpResponse(
+            f"db error: {exc} | engine={engine} | name={name}",
+            content_type="text/plain",
+            status=503,
+        )
 
 
 def login_page(request):
@@ -64,12 +75,20 @@ def doLogin(request, **kwargs):
         return redirect("/")
     except OperationalError:
         logger.exception("authenticate failed (connection)")
-        messages.error(
-            request,
-            "Cannot reach the database. On Render: link your Postgres instance to this "
-            "web service (or set DATABASE_EXTERNAL_URL), confirm the database is Available, "
-            "then redeploy.",
-        )
+        engine = settings.DATABASES.get("default", {}).get("ENGINE", "")
+        if "sqlite" in engine:
+            messages.error(
+                request,
+                "Cannot open the database file on the server. On Render: add a disk "
+                "mounted at /var/data, set USE_SQLITE=1 and SQLITE_PATH=/var/data/db.sqlite3, "
+                "remove DATABASE_URL, then redeploy.",
+            )
+        else:
+            messages.error(
+                request,
+                "Cannot reach PostgreSQL. For single-stack mode set USE_SQLITE=1, remove "
+                "DATABASE_URL, add a /var/data disk, and redeploy.",
+            )
         return redirect("/")
     except DatabaseError:
         logger.exception("authenticate failed (database)")
