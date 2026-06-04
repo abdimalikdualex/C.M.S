@@ -15,12 +15,17 @@ _RENDER_PG_REGIONS = (
 )
 
 
-def _host_resolves(hostname: str) -> bool:
+def _host_resolves(hostname: str, timeout: float = 1.5) -> bool:
+    """Quick DNS check so app startup is not delayed by unreachable regions."""
+    prev = socket.getdefaulttimeout()
     try:
+        socket.setdefaulttimeout(timeout)
         socket.getaddrinfo(hostname, None)
         return True
     except OSError:
         return False
+    finally:
+        socket.setdefaulttimeout(prev)
 
 
 def _replace_hostname(url: str, new_hostname: str) -> str:

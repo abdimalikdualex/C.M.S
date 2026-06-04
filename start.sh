@@ -3,6 +3,6 @@
 set -o errexit
 
 python manage.py migrate --no-input
-python manage.py create_default_admin
+python manage.py create_default_admin || echo "create_default_admin: skipped or already exists"
 
 exec gunicorn college_management_system.wsgi --log-file -
