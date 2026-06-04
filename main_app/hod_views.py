@@ -20,6 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import UpdateView
 
 from .access import user_can_edit_assigned_course_fees
+from .db_safe import safe_aggregate_sum, safe_count, safe_first, safe_list
 from .audit import (
     ACTION_CREATE,
     ACTION_DELETE,
@@ -46,92 +47,140 @@ from .sms_notifications import notify_admission_confirmed
 
 
 def admin_home(request):
-    total_staff = Staff.objects.all().count()
-    total_students = Student.objects.all().count()
+    from django.db import DatabaseError
+
+    try:
+        return _admin_home_impl(request)
+    except DatabaseError:
+        import logging
+
+        logging.getLogger(__name__).exception("admin_home database error")
+        context = {
+            "page_title": "Administrative Dashboard",
+            "total_students": 0,
+            "total_staff": 0,
+            "total_course": 0,
+            "total_subject": 0,
+            "total_fees_collected": 0,
+            "total_fees_pending": 0,
+            "subject_list": [],
+            "attendance_list": [],
+            "student_attendance_present_list": [],
+            "student_attendance_leave_list": [],
+            "student_name_list": [],
+            "student_count_list_in_subject": [],
+            "course_name_list": [],
+            "student_count_list_in_course": [],
+            "current_active_session": None,
+            "recent_audit_logs": [],
+            "coursework_pending_review_count": 0,
+            "dashboard_degraded": True,
+        }
+        messages.warning(
+            request,
+            "Dashboard data could not be loaded (database or migrations). "
+            "Run: python manage.py migrate",
+        )
+        return render(request, "hod_template/home_content.html", context)
+
+
+def _admin_home_impl(request):
+    from django.db import DatabaseError
+
+    total_staff = safe_count(Staff.objects.all())
+    total_students = safe_count(Student.objects.all())
     subjects = Subject.objects.all()
-    total_subject = subjects.count()
-    total_course = Course.objects.all().count()
-    total_fees_collected = int(Payment.objects.all().aggregate(total=Sum("amount")).get("total") or 0)
-    # Pending = sum of student balances (simple MVP)
+    total_subject = safe_count(subjects)
+    total_course = safe_count(Course.objects.all())
+    total_fees_collected = safe_aggregate_sum(Payment.objects.all(), "amount")
     total_fees_pending = 0
-    for s in Student.objects.select_related("course").all():
+    for s in safe_list(Student.objects.select_related("course").all()):
         try:
             bal = int(s.balance() or 0)
         except Exception:
             bal = 0
         if bal and bal > 0:
             total_fees_pending += bal
-    total_fees_pending = int(total_fees_pending)
-    attendance_list = Attendance.objects.filter(subject__in=subjects)
-    total_attendance = attendance_list.count()
     attendance_list = []
     subject_list = []
-    for subject in subjects:
-        attendance_count = Attendance.objects.filter(subject=subject).count()
+    for subject in safe_list(subjects):
+        attendance_count = safe_count(Attendance.objects.filter(subject=subject))
         subject_list.append(subject.name[:7])
         attendance_list.append(attendance_count)
 
-    # Total Subjects and students in Each Course
-    course_all = Course.objects.all()
+    course_all = safe_list(Course.objects.all())
     course_name_list = []
     subject_count_list = []
     student_count_list_in_course = []
 
     for course in course_all:
-        subjects = Subject.objects.filter(course_id=course.id).count()
-        students = Student.objects.filter(course_id=course.id).count()
+        subject_count_list.append(safe_count(Subject.objects.filter(course_id=course.id)))
+        student_count_list_in_course.append(safe_count(Student.objects.filter(course_id=course.id)))
         course_name_list.append(course.name)
-        subject_count_list.append(subjects)
-        student_count_list_in_course.append(students)
-    
-    subject_all = Subject.objects.all()
+
+    subject_all = safe_list(Subject.objects.all())
     subject_list = []
     student_count_list_in_subject = []
     for subject in subject_all:
-        course = Course.objects.get(id=subject.course.id)
-        student_count = Student.objects.filter(course_id=course.id).count()
+        if not subject.course_id:
+            continue
+        student_count = safe_count(Student.objects.filter(course_id=subject.course_id))
         subject_list.append(subject.name)
         student_count_list_in_subject.append(student_count)
 
+    student_attendance_present_list = []
+    student_attendance_leave_list = []
+    student_name_list = []
 
-    # For Students
-    student_attendance_present_list=[]
-    student_attendance_leave_list=[]
-    student_name_list=[]
-
-    students = Student.objects.all()
-    for student in students:
-        
-        attendance = AttendanceReport.objects.filter(student_id=student.id, status=True).count()
-        absent = AttendanceReport.objects.filter(student_id=student.id, status=False).count()
-        leave = LeaveReportStudent.objects.filter(student_id=student.id, status=1).count()
+    for student in safe_list(Student.objects.select_related("admin").all()):
+        attendance = safe_count(
+            AttendanceReport.objects.filter(student_id=student.id, status=True)
+        )
+        absent = safe_count(
+            AttendanceReport.objects.filter(student_id=student.id, status=False)
+        )
+        leave = safe_count(
+            LeaveReportStudent.objects.filter(student_id=student.id, status=1)
+        )
         student_attendance_present_list.append(attendance)
-        student_attendance_leave_list.append(leave+absent)
+        student_attendance_leave_list.append(leave + absent)
         student_name_list.append(student.admin.get_full_name())
 
+    try:
+        recent_audit_logs = list(
+            AuditLog.objects.select_related("user").order_by("-created_at")[:12]
+        )
+    except DatabaseError:
+        recent_audit_logs = []
+
+    try:
+        coursework_pending_review_count = safe_count(
+            Submission.objects.filter(review_status=Submission.REVIEW_SUBMITTED)
+        )
+    except DatabaseError:
+        coursework_pending_review_count = 0
+
     context = {
-        'page_title': "Administrative Dashboard",
-        'total_students': total_students,
-        'total_staff': total_staff,
-        'total_course': total_course,
-        'total_subject': total_subject,
-        'total_fees_collected': total_fees_collected,
-        'total_fees_pending': total_fees_pending,
-        'subject_list': subject_list,
-        'attendance_list': attendance_list,
-        'student_attendance_present_list': student_attendance_present_list,
-        'student_attendance_leave_list': student_attendance_leave_list,
+        "page_title": "Administrative Dashboard",
+        "total_students": total_students,
+        "total_staff": total_staff,
+        "total_course": total_course,
+        "total_subject": total_subject,
+        "total_fees_collected": total_fees_collected,
+        "total_fees_pending": total_fees_pending,
+        "subject_list": subject_list,
+        "attendance_list": attendance_list,
+        "student_attendance_present_list": student_attendance_present_list,
+        "student_attendance_leave_list": student_attendance_leave_list,
         "student_name_list": student_name_list,
         "student_count_list_in_subject": student_count_list_in_subject,
-        "student_count_list_in_course": student_count_list_in_course,
         "course_name_list": course_name_list,
-        "current_active_session": Session.objects.active().first(),
-        "recent_audit_logs": AuditLog.objects.select_related("user").order_by("-created_at")[:12],
-        "coursework_pending_review_count": Submission.objects.filter(
-            review_status=Submission.REVIEW_SUBMITTED
-        ).count(),
+        "student_count_list_in_course": student_count_list_in_course,
+        "current_active_session": safe_first(Session.objects.active()),
+        "recent_audit_logs": recent_audit_logs,
+        "coursework_pending_review_count": coursework_pending_review_count,
     }
-    return render(request, 'hod_template/home_content.html', context)
+    return render(request, "hod_template/home_content.html", context)
 
 
 def admin_assessments(request):

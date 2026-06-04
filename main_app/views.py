@@ -1,5 +1,8 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.db import DatabaseError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,6 +10,8 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Attendance, Session, Staff, Student, Subject
 from .roles import get_post_login_redirect_url
 from .audit import ACTION_LOGIN, ACTION_LOGOUT, MODULE_AUTH, log_audit
+
+logger = logging.getLogger(__name__)
 
 
 def health_check(request):
@@ -23,48 +28,80 @@ def login_page(request):
 def doLogin(request, **kwargs):
     if request.method != 'POST':
         return HttpResponse("<h4>Denied</h4>")
-    else:
-        credential = (request.POST.get("login") or request.POST.get("email") or "").strip()
-        password = (request.POST.get("password") or "").strip()
 
-        if not credential or not password:
+    credential = (request.POST.get("login") or request.POST.get("email") or "").strip()
+    password = (request.POST.get("password") or "").strip()
+
+    if not credential or not password:
+        messages.error(
+            request,
+            "Enter your admission number and password (staff: use your work email).",
+        )
+        return redirect("/")
+
+    try:
+        user = authenticate(request, username=credential, password=password)
+    except DatabaseError:
+        logger.exception("authenticate failed (database unavailable)")
+        messages.error(
+            request,
+            "The database is temporarily unavailable. Please try again in a minute "
+            "or contact your administrator.",
+        )
+        return redirect("/")
+
+    if user is not None:
+        try:
+            login(request, user)
+        except DatabaseError:
+            logger.exception("session login failed (database unavailable)")
             messages.error(
                 request,
-                "Enter your admission number and password (staff: use your work email).",
+                "Could not start your session — database error. "
+                "Ask your administrator to run migrations on the server.",
             )
             return redirect("/")
 
-        user = authenticate(request, username=credential, password=password)
-
-        if user is not None:
-            login(request, user)
-            target = credential
-            if str(getattr(user, "user_type", "") or "").strip() == "3":
-                try:
-                    target = Student.objects.only("student_id").get(admin=user).student_id or (
-                        user.email or credential
-                    )
-                except Student.DoesNotExist:
-                    target = user.email or credential
-            log_audit(
-                request,
-                module=MODULE_AUTH,
-                activity="User logged in",
-                audit_action=ACTION_LOGIN,
-                target_record=target,
-            )
+        target = credential
+        if str(getattr(user, "user_type", "") or "").strip() == "3":
+            try:
+                target = Student.objects.only("student_id").get(admin=user).student_id or (
+                    user.email or credential
+                )
+            except (Student.DoesNotExist, DatabaseError):
+                target = user.email or credential
+        log_audit(
+            request,
+            module=MODULE_AUTH,
+            activity="User logged in",
+            audit_action=ACTION_LOGIN,
+            target_record=target,
+        )
+        try:
             return redirect(get_post_login_redirect_url(user))
+        except DatabaseError:
+            logger.exception("post-login redirect failed")
+            messages.error(request, "Logged in but the dashboard is unavailable. Try again shortly.")
+            return redirect("/")
 
-        if "@" in credential and Student.objects.filter(admin__email__iexact=credential).exists():
-            messages.error(
-                request,
-                "Use your admission number (EDH/YYYY/XXX), not your email, to sign in.",
-            )
-        elif "@" in credential:
-            messages.error(request, "Invalid email or password")
-        else:
-            messages.error(request, "Invalid Admission Number or Password")
-        return redirect("/")
+    try:
+        student_used_email = (
+            "@" in credential
+            and Student.objects.filter(admin__email__iexact=credential).exists()
+        )
+    except DatabaseError:
+        student_used_email = False
+
+    if student_used_email:
+        messages.error(
+            request,
+            "Use your admission number (EDH/YYYY/XXX), not your email, to sign in.",
+        )
+    elif "@" in credential:
+        messages.error(request, "Invalid email or password")
+    else:
+        messages.error(request, "Invalid Admission Number or Password")
+    return redirect("/")
 
 
 def logout_user(request):

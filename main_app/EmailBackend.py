@@ -1,5 +1,6 @@
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError
 
 from .admission_numbers import is_valid_admission_number, normalize_admission_input
 from .models import Student
@@ -12,16 +13,18 @@ class EmailBackend(ModelBackend):
         if not identifier or not password:
             return None
 
-        normalized_adm = normalize_admission_input(identifier)
-        looks_like_student_login = is_valid_admission_number(
-            normalized_adm
-        ) or Student.objects.filter(student_id__iexact=normalized_adm).exists()
+        try:
+            normalized_adm = normalize_admission_input(identifier)
+            looks_like_student_login = is_valid_admission_number(
+                normalized_adm
+            ) or Student.objects.filter(student_id__iexact=normalized_adm).exists()
 
-        # Learners: admission number only (never email). Resolve before email lookup.
-        if looks_like_student_login:
-            return self._authenticate_student_admission(identifier, password)
+            if looks_like_student_login:
+                return self._authenticate_student_admission(identifier, password)
 
-        return self._authenticate_email(identifier, password)
+            return self._authenticate_email(identifier, password)
+        except DatabaseError:
+            return None
 
     def _authenticate_email(self, email: str, password: str):
         UserModel = get_user_model()

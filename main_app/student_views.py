@@ -25,6 +25,45 @@ from .datetime_display import format_receipt_day_stamp
 
 
 def student_home(request):
+    from django.db import DatabaseError
+
+    try:
+        return _student_home_impl(request)
+    except DatabaseError:
+        import logging
+
+        logging.getLogger(__name__).exception("student_home database error")
+        messages.warning(request, "Student dashboard could not load all data (database error).")
+        learner = None
+        try:
+            learner = Student.objects.filter(admin=request.user).select_related("course").first()
+        except DatabaseError:
+            pass
+        context = {
+            "total_attendance": 0,
+            "percent_present": 0,
+            "percent_absent": 0,
+            "total_subject": 0,
+            "subjects": [],
+            "data_present": [],
+            "data_absent": [],
+            "data_name": [],
+            "page_title": "Student Homepage",
+            "fee_expected": 0,
+            "fee_paid": 0,
+            "fee_balance": 0,
+            "enrolled_course": getattr(learner, "course", None) if learner else None,
+            "learner": learner,
+            "coursework_upcoming": [],
+            "coursework_pending": [],
+            "now": timezone.now(),
+        }
+        return render(request, "student_template/home_content.html", context)
+
+
+def _student_home_impl(request):
+    from django.db import DatabaseError
+
     student = get_object_or_404(Student, admin=request.user)
     try:
         fee_expected = student.total_fee()
@@ -69,16 +108,20 @@ def student_home(request):
         .order_by("due_date")[:6]
     )
     coursework_pending = []
-    for a in (
-        Assessment.objects.filter(course_id__in=cids)
-        .select_related("course")
-        .order_by("due_date")[:12]
-    ):
-        sub = Submission.objects.filter(assessment=a, student=student).first()
-        if sub is None:
-            coursework_pending.append({"assessment": a, "submission": None, "late": now > a.due_date})
-        elif sub.review_status == Submission.REVIEW_SUBMITTED and sub.grade is None:
-            coursework_pending.append({"assessment": a, "submission": sub, "late": now > a.due_date})
+    try:
+        for a in (
+            Assessment.objects.filter(course_id__in=cids)
+            .select_related("course")
+            .order_by("due_date")[:12]
+        ):
+            sub = Submission.objects.filter(assessment=a, student=student).first()
+            if sub is None:
+                coursework_pending.append({"assessment": a, "submission": None, "late": now > a.due_date})
+            elif sub.review_status == Submission.REVIEW_SUBMITTED and sub.grade is None:
+                coursework_pending.append({"assessment": a, "submission": sub, "late": now > a.due_date})
+    except DatabaseError:
+        coursework_pending = []
+        coursework_upcoming = []
     context = {
         'total_attendance': total_attendance,
         'percent_present': percent_present,

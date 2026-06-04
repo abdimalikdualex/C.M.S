@@ -4,6 +4,11 @@
 {% block content %}
 <section class="content">
     <div class="container-fluid">
+        {% if dashboard_degraded %}
+        <div class="alert alert-warning">
+            <strong>Limited dashboard.</strong> The database needs attention on the server (run migrations or reconnect Postgres on Render).
+        </div>
+        {% endif %}
         <!-- Small boxes (Stat box) -->
         <div class="row">
             <div class="col-lg-3 col-6">

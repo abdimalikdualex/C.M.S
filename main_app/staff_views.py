@@ -245,6 +245,31 @@ def staff_students_overview_by_course(request):
 
 
 def staff_home(request):
+    from django.db import DatabaseError
+
+    try:
+        return _staff_home_impl(request)
+    except DatabaseError:
+        import logging
+
+        logging.getLogger(__name__).exception("staff_home database error")
+        messages.warning(request, "Staff dashboard could not load all data (database error).")
+        context = {
+            "page_title": "Staff Panel",
+            "total_students": 0,
+            "total_attendance": 0,
+            "total_leave": 0,
+            "total_subject": 0,
+            "subject_list": [],
+            "attendance_list": [],
+            "coursework_pending_review": 0,
+            "assessment_upcoming": 0,
+            "staff_is_instructor": True,
+        }
+        return render(request, "staff_template/home_content.html", context)
+
+
+def _staff_home_impl(request):
     if is_hub_superadmin(request.user):
         staff = ensure_academic_staff(request)
         if staff is None:
