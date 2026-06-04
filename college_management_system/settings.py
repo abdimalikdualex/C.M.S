@@ -40,32 +40,64 @@ DEBUG = os.environ.get("DEBUG", "False").strip().lower() == "true"
 # -----------------------------------------------------------------------------
 # Host / CSRF configuration
 # -----------------------------------------------------------------------------
-# We always allow localhost + Render's default subdomain so a deploy never 400s
-# due to a misconfigured env var. Extra hosts can be added in two ways:
-#   1. SITE_DOMAIN=example.com,www.example.com   (simple additive list)
-#   2. ALLOWED_HOSTS=a,b,c                        (full override, power users)
-#
-# The CSRF_TRUSTED_ORIGINS list is derived automatically from the resolved
-# ALLOWED_HOSTS (https:// is assumed, wildcard entries are handled). Any
-# explicit CSRF_TRUSTED_ORIGINS env var is additive, not a replacement.
+# All host lists are merged (never replaced) so custom domains never cause HTTP 400.
+#   SITE_DOMAIN=example.com,www.example.com
+#   ALLOWED_HOSTS=extra.host.com          (additive)
+#   RENDER_EXTERNAL_HOSTNAME is added automatically on Render.
 
 _default_hosts = ["127.0.0.1", "localhost", ".onrender.com"]
-_site_domains = [h.strip() for h in os.environ.get("SITE_DOMAIN", "").split(",") if h.strip()]
-_hosts_override = os.environ.get("ALLOWED_HOSTS", "").strip()
+# Production custom domain default (override with SITE_DOMAIN env if needed).
+_default_site = os.environ.get(
+    "SITE_DOMAIN", "abdimalikduale.com,www.abdimalikduale.com"
+).strip()
 
-if _hosts_override:
-    ALLOWED_HOSTS = [h.strip() for h in _hosts_override.split(",") if h.strip()]
-    # Make sure the defaults are still present so health checks & Render subdomain never 400.
-    for _h in _default_hosts:
-        if _h not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(_h)
-else:
-    ALLOWED_HOSTS = list(_default_hosts) + _site_domains
 
-# Render sets this to your *.onrender.com hostname; custom domains need SITE_DOMAIN.
+def _expand_allowed_hosts(hosts: list[str]) -> list[str]:
+    """Add subdomain wildcards for bare domains (e.g. .example.com)."""
+    expanded: list[str] = []
+    seen: set[str] = set()
+    for raw in hosts:
+        h = (raw or "").strip()
+        if not h or h in seen:
+            continue
+        seen.add(h)
+        expanded.append(h)
+        if h.startswith(".") or h in ("127.0.0.1", "localhost"):
+            continue
+        if "." in h and not h.startswith("www."):
+            wildcard = f".{h.lstrip('.')}"
+            if wildcard not in seen:
+                seen.add(wildcard)
+                expanded.append(wildcard)
+    return expanded
+
+
+def _merge_hosts(*groups: list[str]) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for h in group:
+            key = h.strip()
+            if key and key not in seen:
+                seen.add(key)
+                merged.append(key)
+    return merged
+
+
+_site_domains = [h.strip() for h in _default_site.split(",") if h.strip()]
+_extra_hosts = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
 _render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
-if _render_host and _render_host not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(_render_host)
+_render_service = os.environ.get("RENDER_SERVICE_NAME", "").strip()
+
+ALLOWED_HOSTS = _expand_allowed_hosts(
+    _merge_hosts(
+        _default_hosts,
+        _site_domains,
+        _extra_hosts,
+        [_render_host] if _render_host else [],
+        [f"{_render_service}.onrender.com"] if _render_service else [],
+    )
+)
 
 
 def _origin_for(host: str) -> str:
