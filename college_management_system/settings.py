@@ -174,9 +174,17 @@ def _use_sqlite_database() -> bool:
     return not os.environ.get("DATABASE_URL", "").strip()
 
 
+def _safe_mkdir(path: Path) -> None:
+    """Create parent dirs when possible; skip during Render build (disk mounts at runtime)."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+
+
 _sqlite_path = _sqlite_database_path()
 if _use_sqlite_database():
-    _sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    _safe_mkdir(_sqlite_path.parent)
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -246,7 +254,7 @@ elif _use_sqlite_database() and (_sqlite_path.parent != BASE_DIR):
     MEDIA_ROOT = str(_sqlite_path.parent / "media")
 else:
     MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-Path(MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
+_safe_mkdir(Path(MEDIA_ROOT))
 AUTH_USER_MODEL = 'main_app.CustomUser'
 AUTHENTICATION_BACKENDS = ['main_app.EmailBackend.EmailBackend']
 # EMAIL_FILE_PATH = os.path.join(BASE_DIR, "sent_mails")

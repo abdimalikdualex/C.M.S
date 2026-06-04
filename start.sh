@@ -2,6 +2,16 @@
 # Run migrations before serving traffic (covers hosts where Procfile release is skipped).
 set -o errexit
 
+# Persistent disk is mounted only at runtime, not during the build step.
+if [ -n "${RENDER_DISK_PATH:-}" ]; then
+  mkdir -p "${RENDER_DISK_PATH}"
+  if [ -n "${MEDIA_ROOT:-}" ]; then
+    mkdir -p "${MEDIA_ROOT}"
+  else
+    mkdir -p "${RENDER_DISK_PATH}/media"
+  fi
+fi
+
 python manage.py migrate --no-input
 python manage.py check_database
 

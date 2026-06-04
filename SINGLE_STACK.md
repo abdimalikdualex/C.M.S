@@ -34,6 +34,7 @@ Open http://127.0.0.1:8000/ — your data stays in `db.sqlite3`.
 | `MEDIA_ROOT` | `/var/data/media` |
 
 4. **Disks** → Add disk, mount path `/var/data`, size 1 GB (keeps data across redeploys).
+   The disk is only writable when the app **runs**, not during the build — that is expected.
 5. **Build:** `./build.sh` — **Start:** `./start.sh`
 6. Deploy from `render.yaml` in this repo (Blueprint) or set the values manually.
 
