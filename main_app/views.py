@@ -2,7 +2,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.db import DatabaseError
+from django.db import DatabaseError, OperationalError, ProgrammingError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -17,6 +17,19 @@ logger = logging.getLogger(__name__)
 def health_check(request):
     """Lightweight probe for Render/custom domain checks (no database)."""
     return HttpResponse("ok", content_type="text/plain")
+
+
+def health_db(request):
+    """Database connectivity probe (for Render troubleshooting)."""
+    from django.db import connection
+
+    try:
+        connection.ensure_connection()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return HttpResponse("db ok", content_type="text/plain")
+    except Exception as exc:
+        return HttpResponse(f"db error: {exc}", content_type="text/plain", status=503)
 
 
 def login_page(request):
@@ -41,12 +54,28 @@ def doLogin(request, **kwargs):
 
     try:
         user = authenticate(request, username=credential, password=password)
-    except DatabaseError:
-        logger.exception("authenticate failed (database unavailable)")
+    except ProgrammingError:
+        logger.exception("authenticate failed (schema/migrations)")
         messages.error(
             request,
-            "The database is temporarily unavailable. Please try again in a minute "
-            "or contact your administrator.",
+            "Database setup is incomplete on the server. "
+            "Ask your administrator to run: python manage.py migrate",
+        )
+        return redirect("/")
+    except OperationalError:
+        logger.exception("authenticate failed (connection)")
+        messages.error(
+            request,
+            "Cannot reach the database. On Render: link your Postgres instance to this "
+            "web service (or set DATABASE_EXTERNAL_URL), confirm the database is Available, "
+            "then redeploy.",
+        )
+        return redirect("/")
+    except DatabaseError:
+        logger.exception("authenticate failed (database)")
+        messages.error(
+            request,
+            "A database error occurred. Please try again or contact your administrator.",
         )
         return redirect("/")
 

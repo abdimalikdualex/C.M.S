@@ -3,6 +3,7 @@
 set -o errexit
 
 python manage.py migrate --no-input
+python manage.py check_database
 
 # Creates the default HOD only if missing — never deletes data or resets passwords.
 python manage.py create_default_admin || echo "create_default_admin: skipped or already exists"

@@ -56,6 +56,7 @@ urlpatterns = [
         name="director_dashboard",
     ),
     path("health/", views.health_check, name="health_check"),
+    path("health/db/", views.health_db, name="health_db"),
     path("", views.login_page, name='login_page'),
     path("get_attendance", views.get_attendance, name='get_attendance'),
     path("firebase-messaging-sw.js", views.showFirebaseJS, name='showFirebaseJS'),

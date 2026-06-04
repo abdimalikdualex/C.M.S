@@ -58,6 +58,14 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 6. Deploy. Migrations and the default HOD account are created by the Procfile
    `release` phase (`migrate` + `create_default_admin`), not during the build.
 
+### Troubleshooting: “Cannot reach the database” on login
+
+1. **Render → PostgreSQL** — status must be **Available** (resume if suspended).
+2. **Web Service → Environment** — **Link Database** (refreshes `DATABASE_URL`).
+3. If login still fails, add **`DATABASE_EXTERNAL_URL`** (copy **External Database URL** from Postgres → Connect).
+4. Optional: `RENDER_POSTGRES_REGION=oregon` (or your DB region: `frankfurt`, `singapore`, `ohio`, `virginia`).
+5. Redeploy. Open `https://your-domain/health/db/` — should show `db ok`.
+
 ### Troubleshooting: `could not translate host name "dpg-…-a"`
 
 This means Django cannot resolve your Postgres hostname (DNS). Common causes:

@@ -48,7 +48,7 @@ class LoginCheckMiddleWare(MiddlewareMixin):
             url_name = None  # noqa: F841
 
         if not user.is_authenticated:
-            if request.path in ("/health/", reverse("login_page"), reverse("user_login")):
+            if request.path in ("/health/", "/health/db/", reverse("login_page"), reverse("user_login")):
                 return None
             if modulename == "django.contrib.auth.views":
                 return None

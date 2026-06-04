@@ -15,7 +15,10 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from college_management_system.database_url import resolve_render_postgres_url
+from college_management_system.database_url import (
+    postgres_sslmode_for_host,
+    resolve_render_postgres_url,
+)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -251,13 +254,13 @@ elif _database_url:
     _database_url = resolve_render_postgres_url(_database_url)
 if _database_url:
     _pg_host = urlparse(_database_url).hostname or ""
-    _render_internal_pg = _pg_host.startswith("dpg-") and "." not in _pg_host
-    DATABASES['default'] = dj_database_url.parse(
-        _database_url,
-        conn_max_age=500,
-        # Render internal Postgres (host dpg-…-a) is not reached over SSL.
-        ssl_require=not DEBUG and not _render_internal_pg,
-    )
+    _db = dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=False)
+    _options = dict(_db.get("OPTIONS") or {})
+    _options["sslmode"] = postgres_sslmode_for_host(_pg_host)
+    _options["connect_timeout"] = int(os.environ.get("DB_CONNECT_TIMEOUT", "10"))
+    _db["OPTIONS"] = _options
+    _db["CONN_HEALTH_CHECKS"] = True
+    DATABASES["default"] = _db
 
 # Behind Render/Heroku load balancers the original request is HTTPS; tell
 # Django so secure cookies and redirects behave correctly.
