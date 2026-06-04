@@ -24,7 +24,7 @@ import os
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from main_app.models import CustomUser
+from main_app.models import Admin, CustomUser
 
 
 DEFAULT_EMAIL = "admin@elevate.college"
@@ -54,10 +54,22 @@ class Command(BaseCommand):
         parser.add_argument(
             "--reset-password",
             action="store_true",
-            default=os.environ.get("RESET_DEFAULT_ADMIN_PASSWORD", "").strip().lower()
-            in {"1", "true", "yes"},
+            default=(
+                os.environ.get("RESET_DEFAULT_ADMIN_PASSWORD", "").strip().lower()
+                in {"1", "true", "yes"}
+                or os.environ.get("SYNC_ADMIN_PASSWORD", "").strip().lower()
+                in {"1", "true", "yes"}
+            ),
             help="If set, overwrite the password of an existing account.",
         )
+
+    def _ensure_hod_profile(self, user: CustomUser) -> None:
+        """HOD logins require user_type=1 and an Admin profile row."""
+        if str(user.user_type).strip() != "1":
+            user.user_type = "1"
+            user.save(update_fields=["user_type"])
+        if not Admin.objects.filter(admin=user).exists():
+            Admin.objects.create(admin=user)
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -84,11 +96,13 @@ class Command(BaseCommand):
                 is_superuser=True,
                 is_active=True,
             )
+            self._ensure_hod_profile(user)
             self.stdout.write(self.style.SUCCESS(
                 f"Created default HOD account <{email}>."
             ))
             return
 
+        self._ensure_hod_profile(user)
         changed_fields = []
         if not user.is_active:
             user.is_active = True

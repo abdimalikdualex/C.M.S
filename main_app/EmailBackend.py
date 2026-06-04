@@ -24,10 +24,12 @@ class EmailBackend(ModelBackend):
 
             return self._authenticate_email(identifier, password)
         except DatabaseError:
-            return None
+            raise
 
     def _authenticate_email(self, email: str, password: str):
         UserModel = get_user_model()
+        email = (email or "").strip()
+        password = (password or "").strip()
         normalized = email.lower()
 
         try:

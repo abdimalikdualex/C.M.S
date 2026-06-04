@@ -29,8 +29,9 @@ Set these on the host (Render dashboard > Environment, or `heroku config:set`):
 | `CSRF_TRUSTED_ORIGINS` | recommended | `https://yourapp.onrender.com,https://yourdomain.com` |
 | `DATABASE_URL` | **strongly recommended** | Full URL from Render **Connect** (set automatically when you link a database) |
 | `DATABASE_EXTERNAL_URL` | optional | Use Render **External** URL if internal host `dpg-…-a` does not resolve |
-| `DEFAULT_ADMIN_EMAIL` | optional | `admin@elevate.college` |
-| `DEFAULT_ADMIN_PASSWORD` | optional | `ElevateAdmin@2026` |
+| `DEFAULT_ADMIN_EMAIL` | optional | Your HOD email, e.g. `amalikduale@gmail.com` |
+| `DEFAULT_ADMIN_PASSWORD` | optional | The password you want for that email |
+| `SYNC_ADMIN_PASSWORD` | one-time recovery | `1` on next deploy, then remove (forces password sync) |
 | `DEFAULT_ADMIN_FULL_NAME` | optional | `System Administrator` |
 | `RESET_DEFAULT_ADMIN_PASSWORD` | optional | `1` to force-reset on next deploy |
 | `EMAIL_ADDRESS`, `EMAIL_PASSWORD` | optional | SMTP Gmail credentials |
@@ -102,6 +103,25 @@ After the first successful deploy, sign in with:
 
 - **Email**: value of `DEFAULT_ADMIN_EMAIL` (default `admin@elevate.college`)
 - **Password**: value of `DEFAULT_ADMIN_PASSWORD` (default `ElevateAdmin@2026`)
+
+### Restoring your real email after a database reset
+
+If production Postgres was recreated, your old accounts are **not** copied automatically
+(only local `db.sqlite3` has them). To sign in with your real HOD email again:
+
+1. On Render → Web Service → **Environment**, set:
+   - `DEFAULT_ADMIN_EMAIL` = `amalikduale@gmail.com` (your email)
+   - `DEFAULT_ADMIN_PASSWORD` = your chosen password
+   - `SYNC_ADMIN_PASSWORD` = `1`
+2. **Manual Deploy** (uses `./start.sh`, which runs `create_default_admin --reset-password`).
+3. Log in with that email and password.
+4. Remove `SYNC_ADMIN_PASSWORD` from the environment after a successful login.
+
+Or in **Render Shell**:
+
+```bash
+python manage.py set_user_password --email amalikduale@gmail.com --password 'YourNewPassword'
+```
 
 **Change the password immediately** from the HOD profile page. The seeder will
 never overwrite an existing password unless you explicitly set

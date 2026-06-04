@@ -84,23 +84,30 @@ def doLogin(request, **kwargs):
             messages.error(request, "Logged in but the dashboard is unavailable. Try again shortly.")
             return redirect("/")
 
-    try:
-        student_used_email = (
-            "@" in credential
-            and Student.objects.filter(admin__email__iexact=credential).exists()
-        )
-    except DatabaseError:
-        student_used_email = False
+    from main_app.models import CustomUser as LoginUser
 
-    if student_used_email:
-        messages.error(
-            request,
-            "Use your admission number (EDH/YYYY/XXX), not your email, to sign in.",
-        )
-    elif "@" in credential:
-        messages.error(request, "Invalid email or password")
-    else:
-        messages.error(request, "Invalid Admission Number or Password")
+    try:
+        if "@" in credential:
+            account = LoginUser.objects.filter(email__iexact=credential.strip()).first()
+            if account is None:
+                messages.error(
+                    request,
+                    "No account with this email on the server. "
+                    "If the site was recently redeployed, ask your administrator to "
+                    "restore your login (Render: set DEFAULT_ADMIN_EMAIL to your email "
+                    "and run create_default_admin --reset-password).",
+                )
+            elif str(getattr(account, "user_type", "") or "").strip() == "3":
+                messages.error(
+                    request,
+                    "Use your admission number (EDH/YYYY/XXX), not your email, to sign in.",
+                )
+            else:
+                messages.error(request, "Incorrect password for this email.")
+        else:
+            messages.error(request, "Invalid admission number or password.")
+    except DatabaseError:
+        messages.error(request, "Could not verify credentials (database error). Try again shortly.")
     return redirect("/")
 
 
